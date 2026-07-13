@@ -22,7 +22,7 @@ from stacks.summarization_stack import SummarizationStack
 
 app = cdk.App()
 
-env = cdk.Environment(account="028317349537", region="ap-northeast-2")
+env = cdk.Environment(account="559352512800", region="ap-northeast-2")
 
 
 network = NetworkStack(app, "Docsuri-Network", env=env)

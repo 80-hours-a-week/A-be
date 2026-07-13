@@ -80,8 +80,8 @@ _RDS_SECRET_ARN = (
 # Manager; referenced by full ARN so the worker (and daily tick) authenticate SS. Plain-string
 # secret (no JSON field). ponytail: hardcoded id, revisit only if the secret is recreated.
 _SS_API_KEY_SECRET_ARN = (
-    "arn:aws:secretsmanager:ap-northeast-2:028317349537:secret:"
-    "docsuri/semantic-scholar-api-key-ExoKCk"
+    "arn:aws:secretsmanager:ap-northeast-2:559352512800:secret:"
+    "docsuri/semantic-scholar-api-key-uOHeP6"
 )
 
 

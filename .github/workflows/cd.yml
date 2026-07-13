@@ -31,8 +31,8 @@ env:
   # vars requires admin:org, which we don't have). The account id is already public in
   # ops/cdk/app.py, and the CD role is assumable ONLY via OIDC from this repo on a v* tag — knowing
   # the ARN grants nothing. Change these here if the account/region/role ever moves.
-  ECR_REGISTRY: 028317349537.dkr.ecr.ap-northeast-2.amazonaws.com
-  CD_ROLE_ARN: arn:aws:iam::028317349537:role/docsuri-github-actions-cd
+  ECR_REGISTRY: 559352512800.dkr.ecr.ap-northeast-2.amazonaws.com
+  CD_ROLE_ARN: arn:aws:iam::559352512800:role/docsuri-github-actions-cd
   IMAGE_SHA: ${{ github.sha }}
 
 # Serialize ALL prod deploys (fixed group, never cancel an in-flight rollout) so two releases
