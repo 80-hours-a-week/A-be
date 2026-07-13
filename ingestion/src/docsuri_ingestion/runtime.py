@@ -123,6 +123,10 @@ def build_production_runtime(settings: IngestionSettings) -> RuntimeServices:
         semantic_scholar=semantic_scholar,
         openalex=openalex,
     )
+    # Local OpenSearch (docker-compose, security disabled) is plain HTTP with no SigV4 — mirror
+    # migrate.py/reembed.py's local/prod split so `ingest-one` against localhost:9200 doesn't
+    # attempt TLS or AWS-signed requests against an unsecured local cluster.
+    local = settings.env == "local"
     control = PostgresControlPlaneStore(settings.control_plane_dsn or "")
     queue = SqsQueue(
         queue_url=settings.sqs_queue_url or "",
@@ -197,8 +201,10 @@ def build_production_runtime(settings: IngestionSettings) -> RuntimeServices:
         vector_index=OpenSearchVectorIndex(
             endpoint=settings.opensearch_endpoint or "",
             index_name=settings.opensearch_index,
-            region_name=settings.aws_region,
+            region_name=None if local else settings.aws_region,
             stats_ttl_seconds=settings.index_stats_ttl_seconds,
+            use_ssl=not local,
+            verify_certs=not local,
         ),
         control_plane=control,
         observability=observability,
@@ -221,8 +227,10 @@ def build_production_runtime(settings: IngestionSettings) -> RuntimeServices:
         vector_index_v2=OpenSearchVectorIndex(
             endpoint=settings.opensearch_endpoint or "",
             index_name=settings.opensearch_index_v2,
-            region_name=settings.aws_region,
+            region_name=None if local else settings.aws_region,
             stats_ttl_seconds=settings.index_stats_ttl_seconds,
+            use_ssl=not local,
+            verify_certs=not local,
         ) if settings.bedrock_model_id_v2 else None,
     )
     refresh = RefreshOrchestrationService(
