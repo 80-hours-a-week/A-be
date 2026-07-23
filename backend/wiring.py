@@ -646,6 +646,81 @@ def _mount_onboarding(app: FastAPI, settings: Settings, result: MountResult) -> 
     result.mounted.append("onboarding")
 
 
+def _build_trends_embedding_port():
+    """Real Bedrock query embedder for topic registration (functional-design §1 — SAME
+    model/space as the corpus, reader input type) when the U2 real read path is configured;
+    None → the controller keeps its deterministic local fake (memory/dev mode)."""
+    try:
+        from discovery.adapters.settings import DiscoverySettings
+
+        ds = DiscoverySettings.from_env()
+        if not ds.search_enabled:
+            return None
+        from discovery.adapters.bedrock_embedding import BedrockCohereQueryEmbedder
+
+        embedder = BedrockCohereQueryEmbedder(
+            model_id=ds.bedrock_model_id,
+            region_name=ds.bedrock_region or ds.aws_region,
+        )
+
+        class _TopicEmbeddingAdapter:
+            def embed_topic(self, text: str) -> list[float]:
+                return embedder.embed_query(text)
+
+        return _TopicEmbeddingAdapter()
+    except Exception:  # noqa: BLE001 — embedding wiring is best-effort; fake keeps CRUD alive
+        log.warning("app-shell: trends embedding port unavailable — using local fake")
+        return None
+
+
+def _mount_trends(app: FastAPI, settings: Settings, result: MountResult) -> None:
+    # trends (U15) is `backend.modules.trends`. Absent → ModuleNotFoundError → skip.
+    # The digest job is NOT mounted here (scheduler deferred per OQ-5) — this wires only the
+    # API surface (follows/settings/unsubscribe); the batch runs via
+    # `python -m backend.modules.trends.digest`.
+    from backend.modules.trends import controller as trends
+    from backend.modules.trends.repository import (
+        InMemoryTrendsRepository,
+        SqlTrendsRepository,
+    )
+
+    if _is_postgres(settings.database_url):
+        from .db import make_engine, make_session_factory
+
+        engine = getattr(app.state, "db_engine", None) or make_engine(settings.database_url)
+        app.state.db_engine = engine
+        session_factory = make_session_factory(engine)
+
+        def get_trends_repo():
+            session = session_factory()
+            try:
+                yield SqlTrendsRepository(session)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            finally:
+                session.close()
+
+        log.info("app-shell: trends read path = sql(postgres)")
+    else:
+        repo = InMemoryTrendsRepository()
+
+        def get_trends_repo():
+            return repo
+
+        log.info("app-shell: trends read path = in-memory")
+
+    embedding_port = _build_trends_embedding_port()
+    if embedding_port is not None:
+        app.dependency_overrides[trends.get_embedding_port] = lambda: embedding_port
+
+    app.dependency_overrides[trends.get_repo] = get_trends_repo
+    for router in trends.routers:
+        app.include_router(router)
+    result.mounted.append("trends")
+
+
 def _mount_novelty(app: FastAPI, settings: Settings, result: MountResult) -> None:
     from backend.modules.novelty import controller as novelty
     from backend.modules.novelty.adapters import (
@@ -851,6 +926,7 @@ _INTEGRATIONS = (
     _mount_citation_graph,
     _mount_personalization,
     _mount_onboarding,  # after personalization: rides its app.state event-recorder seam
+    _mount_trends,      # U15 API surface only — the digest batch is a CLI (OQ-5)
     _mount_research,
     _mount_novelty,
     _mount_summarization,
