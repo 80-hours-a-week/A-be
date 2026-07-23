@@ -108,7 +108,28 @@ class BehaviorEventRecorder:
         )
 
 
+# U14 onboarding seed weight (functional-design §2): one interest_set event weighs K× a
+# search_executed event per category/keyword (search_executed credits 0.5/category and
+# 0.25/keyword — see the aggregate() branch). K=3 default; env knob so ops can recalibrate
+# against the real decay curve without a redeploy. No separate decay logic: the 90-day raw
+# retention IS the decay (OQ-5).
+_DEFAULT_SEED_WEIGHT = 3.0
+
+
+def _seed_weight_from_env() -> float:
+    raw = os.getenv("DOCSURI_ONBOARDING_SEED_WEIGHT")
+    if raw is None:
+        return _DEFAULT_SEED_WEIGHT
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return _DEFAULT_SEED_WEIGHT
+
+
 class ProfileAggregator:
+    def __init__(self, seed_weight: float | None = None) -> None:
+        self._seed_weight = seed_weight if seed_weight is not None else _seed_weight_from_env()
+
     def aggregate(self, user_id: str, events: list[BehaviorEvent]) -> UserInterestProfile | None:
         if not events:
             return None
@@ -149,6 +170,13 @@ class ProfileAggregator:
             elif event.eventType is BehaviorEventType.GLOSSARY_UPDATED:
                 if version := event.metadata.get("glossaryVersion"):
                     glossary_version = str(version)
+            elif event.eventType is BehaviorEventType.INTEREST_SET:
+                # U14 seeding (BR-OB2: event-path only — this branch IS how onboarding reaches
+                # the profile). Each named category/keyword weighs K× a search_executed signal.
+                for cat in event.metadata.get("categories") or []:
+                    category_weights[str(cat)] += 0.5 * self._seed_weight
+                for keyword in event.metadata.get("keywords") or []:
+                    keyword_weights[str(keyword)] += 0.25 * self._seed_weight
 
         return UserInterestProfile(
             userId=user_id,
@@ -191,6 +219,18 @@ def _to_search_boosts(weights: dict[str, float]) -> dict[str, float]:
         scale = _BOOST_TOTAL / total
         boosts = {key: b * scale for key, b in boosts.items()}
     return boosts
+
+
+def _boost_weights(profile: UserInterestProfile) -> dict[str, float]:
+    """US-P5: the live boost consumes keywordWeights alongside categoryWeights — ONE merged map
+    through the same BR-P8 clamp, so the combined budget still obeys Σ|boost| ≤ 0.2 and no new
+    ranking machinery appears (the ranker matches keyword keys against titles, category keys
+    against categories). Category keys win a (pathological) key collision."""
+    if not profile.keywordWeights:
+        return profile.categoryWeights
+    merged = dict(profile.keywordWeights)
+    merged.update(profile.categoryWeights)
+    return merged
 
 
 # US-P3 profile refresh (US-P4 boost freshness): a persisted profile is otherwise frozen — new
@@ -254,7 +294,7 @@ class PersonalizationReadPort:
                 return {}
             reset_at = settings.profileResetAt if settings is not None else None
             profile = self._load_or_build_profile(user_id, reset_at)
-            boosts = _to_search_boosts(profile.categoryWeights) if profile else {}
+            boosts = _to_search_boosts(_boost_weights(profile)) if profile else {}
             if boosts:
                 _emit_metric(self._observability, "personalization.applied")
             else:
@@ -282,7 +322,7 @@ class PersonalizationReadPort:
                 return PersonalizationDecision(enabled=False, reason="no_profile")
             return PersonalizationDecision(
                 enabled=True,
-                searchBoosts=_to_search_boosts(profile.categoryWeights) if include_search else {},
+                searchBoosts=_to_search_boosts(_boost_weights(profile)) if include_search else {},
                 summaryDefaults=profile.summaryDefaults,
                 translationDefaults=profile.translationDefaults,
                 reason="profile_available",

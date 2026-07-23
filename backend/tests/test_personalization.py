@@ -428,6 +428,35 @@ def test_api_records_and_returns_decision(monkeypatch) -> None:
     assert decision["searchBoosts"]["cs.AI"] == 0.1
 
 
+def test_search_boosts_consume_keyword_weights_alongside_categories() -> None:
+    # US-P5: the live boost map merges keywordWeights into the same bounded dict as
+    # categoryWeights — one BR-P8 budget across both, category keys win a collision.
+    repo = InMemoryPersonalizationRepository()
+    user_id = str(uuid4())
+    repo.insert_event(
+        BehaviorEvent(
+            userId=user_id,
+            eventType=BehaviorEventType.INTEREST_SET,
+            subject=BehaviorSubject(kind="interest"),
+            metadata={
+                "source": "onboarding_picker",
+                "categories": ["cs.AI"],
+                "keywords": ["transformer"],
+            },
+            dedupeKey="interest_set:onboarding_picker:x",
+        )
+    )
+
+    boosts = PersonalizationReadPort(repo).cached_search_boosts(user_id)
+
+    assert boosts.get("cs.AI", 0.0) > 0.0
+    assert boosts.get("transformer", 0.0) > 0.0
+    assert all(abs(b) <= 0.1 + 1e-9 for b in boosts.values())
+    assert sum(abs(b) for b in boosts.values()) <= 0.2 + 1e-9
+    # decision path serves the identical merged map
+    assert PersonalizationReadPort(repo).search_decision(user_id).searchBoosts == boosts
+
+
 def test_search_boosts_respect_brp8_bounds() -> None:
     from backend.modules.personalization.service import _to_search_boosts
 
@@ -586,7 +615,8 @@ _PASSIVE_EVENT_TYPES = ("hover", "scroll", "dwell", "mouse_move", "scroll_depth"
 def test_event_taxonomy_is_closed_to_meaningful_events() -> None:
     # AC2: the recordable taxonomy is exactly the meaningful set — search, paper view, library
     # save/unsave, summary/translation request, source-anchor click, glossary edit (+
-    # read_completed, the #346 KPI-funnel addition). Adding a passive type must fail this test
+    # read_completed, the #346 KPI-funnel addition; + interest_set, the U14 onboarding
+    # explicit-interest action per the FR-39 개정). Adding a passive type must fail this test
     # and force a story-level review.
     assert {t.value for t in BehaviorEventType} == {
         "search_executed",
@@ -597,6 +627,7 @@ def test_event_taxonomy_is_closed_to_meaningful_events() -> None:
         "source_anchor_clicked",
         "glossary_updated",
         "read_completed",
+        "interest_set",
     }
     for passive in _PASSIVE_EVENT_TYPES:
         assert passive not in {t.value for t in BehaviorEventType}
