@@ -1,10 +1,10 @@
 # DocSuri Production Roadmap — 2026-07
 
 > **Date**: 2026-07-03 · **Baseline**: **main at v1.14.0** (`93cece9f`) — Phase 2 hardening board **shipped to prod**; v1.14 promotion (2026-07-08) ships #345 shadow-metric machinery + #344 audit step + parser/render fixes.
-> **Updated**: 2026-07-23 — **🏁 ROADMAP CLOSED — COMPLETE** (final reconcile vs GitHub + fork state). Phase 0 ✅ · Phase 1 ✅ (v1.9.0) · Phase 2 ✅ — every tracked issue terminal (#343/#344/#345/#347/#348/#167 closed; #419/#423/#424/#425/#427 merged 2026-07-07). Endgame after the last board update below:
+> **Updated**: 2026-07-23 — **🏁 Phases 0–2 CLOSED — COMPLETE; Phase 3 OPEN** (final reconcile vs GitHub + fork state). Phase 0 ✅ · Phase 1 ✅ (v1.9.0) · Phase 2 ✅ — every tracked issue terminal (#343/#344/#345/#347/#348/#167 closed; #419/#423/#424/#425/#427 merged 2026-07-07). **Phase 3 (§5) is the remaining open scope** — inception re-entry started 2026-07-23 with 온보딩: requirements draft at `aidlc-docs/inception/requirements/onboarding.md` (FR-44~45·C-7~8 제안, OQ 7건 — 승인 게이트 대기). Endgame after the last board update below:
 > - ✅ **#345 LIVE** — shadow review (synthetic + algorithm) approved the flip; **PR #446** put the US-P4 boost on the live search order via `SEARCH_RERANK_LIVE` (**v1.15.0**, 2026-07-08). CDK `compute_stack.py` pins the flag default `"true"` (drift-proof) with `-c search_rerank_live=false` as no-code rollback; live api task-def rev31. Follow-up **PR #454** healed a silent no-op (profile TTL refresh + category backfill, v1.17.0). US-P5 + keywordWeights carried forward.
 > - ✅ **Final sprint v1.15→v1.19** (07-08→07-10): privacy/terms 페이지+탈퇴 보관정책 정합(#447, v1.16.0) · u7 요약 출처 앵커 수정(#456/#457, v1.17.1) · u7 전문 번역 표준 용어 마스킹 결정적 강제(#462, v1.18.0) · u7 CI job(#459) · **full user-story QA pass — 70 stories**(#464) + search cold-path 504·US-D6 기권 플로어 수정(#465, v1.18.1) + QA 갭 백로그 8 워크스트림 해소(#467, v1.18.2) · EV2 sync-turn SSE 스트리밍(NFR-P6 #266, #469). **Terminal prod release: `v1.19.0` (2026-07-10)** — org repo (80-hours-a-week) frozen thereafter.
-> - ⏭️ **Deferred, carried to the local-serving backlog**: #344 native_html GROBID re-parse (corpus quality, non-hardening) · node24 tag-action bump (moot — org CI retired with the freeze) · Phase 3 growth scope (§5, never entered requirements this cycle).
+> - ⏭️ **Deferred, carried to the local-serving backlog**: #344 native_html GROBID re-parse (corpus quality, non-hardening) · node24 tag-action bump (moot — org CI retired with the freeze). **Phase 3 (§5) is NOT deferred** — it remains this roadmap's open scope, now entering inception.
 > - 🗄️ **Epilogue — off-AWS migration** (post-roadmap): CDK repointed to personal acct `559352512800` (fork PR #1, 07-13) → ingestion `DOCSURI_ENV=local` no-TLS (fork PR #2) → **local mac-mini serving at prod parity + pg_dump→verify→S3 backup** (fork PR #3, 07-23). Bedrock stays remote; fork `develop` is the living branch (`main` retired). The AWS-production era this roadmap tracked ended at v1.19.0; ops continue local.
 > **Updated**: 2026-07-07 (v1.13 deployed) — **Phase 2 substantially DONE**. Shipped in the v1.13 promotion: #341 SSR-500, #416 reranker, #420/#343 docmodel throttle, #422/#167 authz, #427/#348 email→SES (now **LIVE**), env-seam test — on top of the earlier #342/#346/#347-real-data. Zero open PRs. **Remaining Phase 2**:
 > - 🟡 **#344 backfill/doc-model ops** — throttle now live → the DLQ drain (24) + native_html backfill (10,660/21,252) + autoscale restore are **unblocked** prod-ops. Runbook: `reports/runbook-docmodel-drain-344.md`. Queue-separation still a decision.
@@ -122,9 +122,12 @@ Ordered by user impact:
 
 ## 5. Phase 3 — Month 2: growth scope (requires inception re-entry)
 
-> **Close-out (2026-07-23)**: none of these entered requirements during the roadmap window —
-> the team cycle ended at v1.19.0 (2026-07-10) and the product moved to the local-serving era.
-> This list carries forward unchanged as the backlog for that era; the ordering rationale in §6 still holds.
+> **Status (2026-07-23)**: none of these entered requirements during the team cycle (ended at
+> v1.19.0, 2026-07-10); the product moved to the local-serving era. **Phase 3 is now active**:
+> inception re-entry began with item 1 — 온보딩 requirements draft at
+> `aidlc-docs/inception/requirements/onboarding.md` (FR-44~45·C-7~8 proposed; 7 open questions
+> incl. the keyword-vs-categoryWeights seeding tension with the live US-P4 boost — human approval
+> gate before CONSTRUCTION). The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
 
