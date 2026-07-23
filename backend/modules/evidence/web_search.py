@@ -4,14 +4,17 @@ Semantic Scholar Graph + OpenAlex(둘 다 무키)를 질의해 **표시 메타�
 ``WebReference``를 돌려준다. 링크백 전용(BR-WR1): 페이지 fetch·본문/초록 저장 없음.
 URL/DOI는 프로바이더 반환 원본만 — 조립·생성 금지(BR-WR4 무날조), https·허용 호스트
 검증 실패 항목은 드랍. 장애·타임아웃은 조용한 저하(BR-WR5): 한 프로바이더가 죽으면
-다른 쪽 결과만, 둘 다 죽으면 빈 튜플. 전체 시간 예산은 주입된 httpx client의
-timeout이 bound한다(NFR-P6 — 배선은 real_wiring 참조).
+다른 쪽 결과만, 둘 다 죽으면 빈 튜플. 전체 시간 예산(NFR-P6, 기본 4s)은 ``search()``가
+monotonic deadline으로 직접 bound한다: 두 프로바이더를 병렬 실행하고 예산 내 완료분만
+수집, 미완은 포기하며, 재시도도 예산이 남을 때만 수행한다. 주입된 httpx client의
+timeout은 요청 1건의 상한(≤ 예산)일 뿐 전체 벽시계 보증이 아니다(배선은 real_wiring 참조).
 """
 
 from __future__ import annotations
 
 import logging
 import time
+from concurrent import futures
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -27,6 +30,7 @@ _SEMANTIC_SCHOLAR_SEARCH_URL = 'https://api.semanticscholar.org/graph/v1/paper/s
 _OPENALEX_WORKS_URL = 'https://api.openalex.org/works'
 _MAX_DISPLAY_AUTHORS = 3  # 표시용 상위 몇 명(§1)
 _RETRY_BACKOFF_SECONDS = 0.5  # transient 실패 1회 재시도 간격(§9 S2 무키 레이트리밋 유의)
+_DEFAULT_BUDGET_SECONDS = 4.0  # 전체 벽시계 예산 기본값(NFR-P6 — settings.web_refs_timeout_s)
 _DOI_URL_PREFIX = 'https://doi.org/'
 
 
@@ -57,8 +61,12 @@ class ScholarlyApiSearchClient:
     """Semantic Scholar Graph /paper/search + OpenAlex /works?search= 병합 클라이언트.
 
     novelty ``ExternalApiSearchClient``와 동일한 주입 스타일 — httpx client는 배선이
-    timeout과 함께 주입한다. 프로바이더별 실패 격리: 한쪽 예외는 다른 쪽 결과에
-    무영향(BR-WR5/BR-WR6 전례).
+    timeout(요청 1건 상한 ≤ ``timeout_s``)과 함께 주입한다. 프로바이더별 실패 격리:
+    한쪽 예외는 다른 쪽 결과에 무영향(BR-WR5/BR-WR6 전례).
+
+    NFR-P6: ``search()``는 ``timeout_s`` 전체 벽시계 예산을 monotonic deadline으로
+    강제한다 — 두 프로바이더를 병렬 실행하고 deadline까지 완료된 결과만 수집, 미완
+    프로바이더는 포기(스레드는 자연 종료). 재시도(``_json``)도 예산이 남을 때만.
     """
 
     def __init__(
@@ -66,26 +74,36 @@ class ScholarlyApiSearchClient:
         client: Any,
         *,
         max_refs: int = 5,
+        timeout_s: float = _DEFAULT_BUDGET_SECONDS,
         mailto: str | None = None,
     ) -> None:
         self._client = client
         self._max_refs = max_refs
+        self._timeout_s = timeout_s  # 전체 벽시계 예산(NFR-P6)
         self._mailto = mailto  # OpenAlex polite pool(§9 — DOCSURI_OPENALEX_MAILTO)
 
     def search(self, query: str) -> tuple[WebReference, ...]:
         cleaned = sanitize_external_query(query)  # BR-WR3 — ≤180자, topic만
-        refs: list[WebReference] = []
-        for source, fetch in (
+        deadline = time.monotonic() + self._timeout_s
+        providers = (
             ('semantic_scholar', self._semantic_scholar),
             ('openalex', self._openalex),
-        ):
-            try:
-                refs.extend(fetch(cleaned))
-            except Exception:  # noqa: BLE001 — 한 프로바이더 실패는 다른 쪽에 무영향(BR-WR5)
-                log.warning('%s web reference search unavailable', source)
+        )
+        executor = futures.ThreadPoolExecutor(
+            max_workers=len(providers), thread_name_prefix='web-refs'
+        )
+        try:
+            pending = {
+                executor.submit(fetch, cleaned, deadline): source for source, fetch in providers
+            }
+            collected = _collect_within_deadline(pending, deadline)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+        # 완료 순서와 무관하게 프로바이더 고정 순서로 병합 — dedupe/cap 결정성 유지.
+        refs = [ref for source, _fetch in providers for ref in collected.get(source, [])]
         return tuple(_dedupe(refs)[: self._max_refs])
 
-    def _semantic_scholar(self, query: str) -> list[WebReference]:
+    def _semantic_scholar(self, query: str, deadline: float) -> list[WebReference]:
         payload = self._json(
             _SEMANTIC_SCHOLAR_SEARCH_URL,
             params={
@@ -93,6 +111,7 @@ class ScholarlyApiSearchClient:
                 'fields': 'title,externalIds,url,year,authors,venue',
                 'limit': self._max_refs,
             },
+            deadline=deadline,
         )
         refs = []
         for paper in (payload.get('data') or [])[: self._max_refs]:
@@ -108,11 +127,11 @@ class ScholarlyApiSearchClient:
                 refs.append(ref)
         return refs
 
-    def _openalex(self, query: str) -> list[WebReference]:
+    def _openalex(self, query: str, deadline: float) -> list[WebReference]:
         params: dict[str, Any] = {'search': query, 'per-page': self._max_refs}
         if self._mailto:
             params['mailto'] = self._mailto
-        payload = self._json(_OPENALEX_WORKS_URL, params=params)
+        payload = self._json(_OPENALEX_WORKS_URL, params=params, deadline=deadline)
         refs = []
         for work in (payload.get('results') or [])[: self._max_refs]:
             authorships = work.get('authorships') or []
@@ -131,11 +150,14 @@ class ScholarlyApiSearchClient:
                 refs.append(ref)
         return refs
 
-    def _json(self, url: str, *, params: dict[str, Any]) -> Any:
-        """transient 실패 1회 재시도(단순 백오프) 후 포기(§1) — 상위가 저하로 수렴."""
+    def _json(self, url: str, *, params: dict[str, Any], deadline: float) -> Any:
+        """transient 실패 시 예산이 남아 있을 때만 1회 재시도(단순 백오프) 후 포기(§1) —
+        상위가 저하로 수렴. deadline 초과 시 재시도 생략(NFR-P6)."""
         try:
             return self._get_json(url, params)
         except Exception:  # noqa: BLE001 — 1회 재시도 후 최종 예외는 상위 격리로 전파
+            if time.monotonic() + _RETRY_BACKOFF_SECONDS >= deadline:
+                raise  # 예산 소진 — 재시도 없이 상위 격리로 수렴
             time.sleep(_RETRY_BACKOFF_SECONDS)
             return self._get_json(url, params)
 
@@ -147,6 +169,28 @@ class ScholarlyApiSearchClient:
         if raise_for_status is not None:
             raise_for_status()
         return response.json()
+
+
+def _collect_within_deadline(
+    pending: dict[futures.Future[list[WebReference]], str], deadline: float
+) -> dict[str, list[WebReference]]:
+    """deadline까지 완료된 프로바이더 결과만 수집(NFR-P6) — 미완은 포기(벽시계 보증).
+
+    프로바이더별 실패 격리(BR-WR5)도 여기서: 한쪽 예외는 다른 쪽 결과에 무영향.
+    """
+    collected: dict[str, list[WebReference]] = {}
+    try:
+        remaining = max(0.0, deadline - time.monotonic())
+        for done in futures.as_completed(pending, timeout=remaining):
+            source = pending[done]
+            try:
+                collected[source] = done.result()
+            except Exception:  # noqa: BLE001 — 한 프로바이더 실패는 다른 쪽에 무영향(BR-WR5)
+                log.warning('%s web reference search unavailable', source)
+    except futures.TimeoutError:
+        abandoned = [source for future, source in pending.items() if not future.done()]
+        log.warning('web reference budget exhausted; abandoned: %s', ', '.join(abandoned))
+    return collected
 
 
 def _reference(

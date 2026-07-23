@@ -6,6 +6,7 @@ DOCSURI_WEB_REFS_ENABLED=false Noop 배선을 검증한다.
 
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
@@ -280,6 +281,36 @@ def test_one_provider_failure_uses_other_providers_results(monkeypatch) -> None:
     # 실패 프로바이더는 1회 재시도(백오프) 후 포기한다.
     s2_calls = [url for url, _ in http.calls if urlparse(url).hostname == 'api.semanticscholar.org']
     assert len(s2_calls) == 2
+
+
+# ---------------------------------------------------------------------------
+# NFR-P6 — search() 전체 벽시계는 timeout_s 예산이 bound한다(§9 post-extraction 4s cap)
+# ---------------------------------------------------------------------------
+
+def test_search_wall_clock_bounded_by_budget_despite_stalled_provider() -> None:
+    budget = 0.5
+    stall = budget * 4  # 예산을 한참 넘는 프로바이더 스톨 — abandon되어야 한다
+
+    class _StalledS2Http(_RecordingHttp):
+        def get(self, url: str, *, params: dict):
+            if urlparse(url).hostname == 'api.semanticscholar.org':
+                time.sleep(stall)
+            return super().get(url, params=params)
+
+    http = _StalledS2Http(
+        {'api.openalex.org': {'results': [_openalex_work('Fast', 'https://openalex.org/W9')]}}
+    )
+    client = ScholarlyApiSearchClient(http, max_refs=5, timeout_s=budget)
+
+    start = time.monotonic()
+    refs = client.search('rag evaluation')
+    elapsed = time.monotonic() - start
+
+    # 벽시계 상한: 예산 + 관대한 여유(스케줄링 지터로 인한 flake 방지). stall(2.0s)보다
+    # 훨씬 작아 스톨 프로바이더를 기다리지 않았음을 증명한다.
+    assert elapsed < budget + 1.0
+    # 빠른 프로바이더 결과는 그대로 동봉된다(BR-WR5 격리 유지).
+    assert [ref.title for ref in refs] == ['Fast']
 
 
 # ---------------------------------------------------------------------------

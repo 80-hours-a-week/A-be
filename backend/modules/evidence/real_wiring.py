@@ -113,8 +113,11 @@ def build_evidence_orchestrator(
 def build_scholarly_web_search(settings: EvidenceSettings) -> ScholarlyWebSearchPort:
     """FR-49 웹레퍼런스 배선 — DOCSURI_WEB_REFS_ENABLED=false면 Noop(기본 배선·저하 경로).
 
-    전체 시간 예산(DOCSURI_WEB_REFS_TIMEOUT_S, 기본 4s)은 httpx client timeout으로
-    bound한다(NFR-P6). U12 novelty의 scholarly 합류도 이 팩토리를 재사용한다(US-WR2).
+    전체 시간 예산(DOCSURI_WEB_REFS_TIMEOUT_S, 기본 4s)은 ``search()``의 monotonic
+    deadline이 bound한다(NFR-P6 — 프로바이더 병렬 실행, 미완 포기). httpx client
+    timeout은 같은 값으로 요청 1건의 상한만 담당한다 — 프로바이더가 병렬이므로 단일
+    스톨 요청도 예산을 넘지 못한다. U12 novelty의 scholarly 합류도 이 팩토리를
+    재사용한다(US-WR2).
     """
     if not settings.web_refs_enabled:
         return NoopScholarlyWebSearchClient()
@@ -127,5 +130,6 @@ def build_scholarly_web_search(settings: EvidenceSettings) -> ScholarlyWebSearch
             headers={'User-Agent': 'DocSuri-Evidence/1.0'},
         ),
         max_refs=settings.web_refs_max,
+        timeout_s=settings.web_refs_timeout_s,
         mailto=settings.openalex_mailto,
     )
