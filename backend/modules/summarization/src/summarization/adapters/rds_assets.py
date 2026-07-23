@@ -52,9 +52,10 @@ class RdsS3AssetReader:
             # A regional endpoint URL yields ``s3.<region>.amazonaws.com/<bucket>/…`` which the CSP
             # allows and S3 serves directly.
             region = os.getenv("AWS_REGION") or os.getenv("DOCSURI_AWS_REGION") or "ap-northeast-2"
-            self._s3 = boto3.client(
-                "s3", region_name=region, endpoint_url=f"https://s3.{region}.amazonaws.com"
-            )
+            # AWS_ENDPOINT_URL_S3 (boto3's own override var) wins when set — that's how local
+            # serving points this reader at MinIO; unset in prod, so the regional URL still rules.
+            endpoint = os.getenv("AWS_ENDPOINT_URL_S3") or f"https://s3.{region}.amazonaws.com"
+            self._s3 = boto3.client("s3", region_name=region, endpoint_url=endpoint)
         return self._s3
 
     def list_assets(self, paper_id: str, version: int) -> Sequence[StoredAsset]:
