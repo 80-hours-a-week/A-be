@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { abstainReasonLabel, parseAgentContent } from '@/lib/agentChat/evidenceResult';
+import {
+  abstainReasonLabel,
+  formatWebReferenceAuthors,
+  parseAgentContent,
+} from '@/lib/agentChat/evidenceResult';
 
 describe('parseAgentContent', () => {
   it('parses a successful EvidenceResult JSON payload', () => {
@@ -65,7 +69,9 @@ describe('parseAgentContent', () => {
   });
 
   it('treats plain text (e.g. user messages, novelty mode) as text', () => {
-    const parsed = parseAgentContent('transformer 모델의 attention 메커니즘에 대한 최근 연구 동향은?');
+    const parsed = parseAgentContent(
+      'transformer 모델의 attention 메커니즘에 대한 최근 연구 동향은?',
+    );
     expect(parsed.kind).toBe('text');
     if (parsed.kind === 'text') {
       expect(parsed.text).toContain('transformer');
@@ -75,5 +81,45 @@ describe('parseAgentContent', () => {
   it('does not choke on JSON-looking text that is not an EvidenceResult', () => {
     const parsed = parseAgentContent('{"foo": "bar"}');
     expect(parsed.kind).toBe('text');
+  });
+
+  // U11 웹 레퍼런스(FR-49) — optional 필드가 파싱을 그대로 통과한다.
+  it('passes through the optional webReferences field', () => {
+    const webReferences = [
+      {
+        title: 'Benchmark Data Contamination of Large Language Models: A Survey',
+        url: 'https://www.semanticscholar.org/paper/2406.04244',
+        doi: '10.48550/arXiv.2406.04244',
+        authors: ['Cheng Xu'],
+        year: 2024,
+        source: 'semantic_scholar',
+      },
+    ];
+    const parsed = parseAgentContent(
+      JSON.stringify({ state: 'ok', claims: [], coverage: { paperCount: 0 }, webReferences }),
+    );
+
+    expect(parsed.kind).toBe('evidence');
+    if (parsed.kind === 'evidence') {
+      expect(parsed.result.webReferences).toEqual(webReferences);
+    }
+  });
+});
+
+describe('formatWebReferenceAuthors', () => {
+  it('returns null when authors are absent or empty', () => {
+    expect(formatWebReferenceAuthors(undefined)).toBeNull();
+    expect(formatWebReferenceAuthors([])).toBeNull();
+  });
+
+  it('lists up to two authors verbatim', () => {
+    expect(formatWebReferenceAuthors(['Cheng Xu'])).toBe('Cheng Xu');
+    expect(formatWebReferenceAuthors(['Cheng Xu', 'Shuhao Guan'])).toBe('Cheng Xu, Shuhao Guan');
+  });
+
+  it('abbreviates three or more authors as "first author 외 N명"', () => {
+    expect(formatWebReferenceAuthors(['Cheng Xu', 'Shuhao Guan', 'Derek Greene'])).toBe(
+      'Cheng Xu 외 2명',
+    );
   });
 });

@@ -598,6 +598,104 @@ def test_external_adapter_queries_public_api_sources() -> None:
     assert all(item["sourceRefs"] for item in result.items)
 
 
+def _stub_external_http():
+    """GitHub/HF/Zenodo 3소스 최소 성공 응답 — scholarly 합류 테스트용(BR-WR6)."""
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeHttp:
+        def get(self, url: str, *, params: dict, headers: dict):
+            host = urlparse(url).hostname
+            if host == "api.github.com":
+                return Response(
+                    {
+                        "items": [
+                            {
+                                "full_name": "docsuri/novelty-baseline",
+                                "html_url": "https://github.com/docsuri/novelty-baseline",
+                                "description": "Novelty baseline",
+                            }
+                        ]
+                    }
+                )
+            if host == "huggingface.co":
+                return Response([{"id": "docsuri/rag-eval", "tags": ["rag"]}])
+            if host == "zenodo.org":
+                return Response(
+                    {
+                        "hits": {
+                            "hits": [
+                                {
+                                    "id": "123",
+                                    "links": {"html": "https://zenodo.org/records/123"},
+                                    "metadata": {"title": "RAG Evaluation Dataset"},
+                                }
+                            ]
+                        }
+                    }
+                )
+            raise AssertionError(f"unexpected external API call: {url}")
+
+    return FakeHttp()
+
+
+def test_external_adapter_isolates_scholarly_failure() -> None:
+    """BR-WR6 — scholarly 실패는 GitHub/HF/Zenodo 결과·잡 진행에 무영향(소스별 격리)."""
+
+    class _FailingScholarly:
+        def search(self, query: str):
+            raise RuntimeError("scholarly outage")
+
+    result = ExternalApiSearchClient(
+        _stub_external_http(), scholarly=_FailingScholarly()
+    ).search("privacy preserving RAG")
+
+    assert result.evidenceStatus is EvidenceStatus.SUPPORTED
+    assert {item["sourceName"] for item in result.items} == {"GitHub", "Hugging Face", "Zenodo"}
+    assert "scholarly external search unavailable" in (result.degradedReason or "")
+
+
+def test_external_adapter_joins_scholarly_results_in_bundle_shape() -> None:
+    """US-WR2 — 동일 ScholarlyWebSearchPort 결과가 기존 RetrievalBundle 항목 형상으로 합류."""
+    from backend.modules.evidence.web_search import WebReference
+
+    class _StubScholarly:
+        def search(self, query: str):
+            return (
+                WebReference(
+                    title="Grounded RAG Survey",
+                    url="https://www.semanticscholar.org/paper/abc",
+                    doi="10.1/x",
+                    authors=("Author One",),
+                    year=2025,
+                    source="semantic_scholar",
+                ),
+            )
+
+    result = ExternalApiSearchClient(
+        _stub_external_http(), scholarly=_StubScholarly()
+    ).search("privacy preserving RAG")
+
+    scholarly_items = [item for item in result.items if item.get("sourceType") == "paper"]
+    assert len(scholarly_items) == 1
+    item = scholarly_items[0]
+    assert item["title"] == "Grounded RAG Survey"
+    assert item["url"] == "https://www.semanticscholar.org/paper/abc"
+    assert item["sourceName"] == "Semantic Scholar"
+    assert item["sourceRefs"]
+    assert result.degradedReason is None
+
+
 def test_bedrock_llm_adapter_maps_source_ref_indexes_only() -> None:
     class FakeBedrock:
         def invoke_model_with_response_stream(self, **kwargs):

@@ -64,13 +64,13 @@
 | 논문 요약/번역 | ✅ Live | Grounded summaries/translation; glossary redesign (PR #334); source-anchor structural resolution + stale-docmodel self-heal (PR #351); tool-use structured output (PR #356, shipped v1.4.0); summary worker now its own ECS unit (PR #366, **v1.5.0**) — 무한 pending 사고 클래스 prod 종결; worker crash + 수식/MathML sanitize + glossary 편집 UI (PR #371, **v1.6.0**); physics 패키지 수식 매크로 렌더 — **PR #381, v1.7.0**(유진, #371 후속) |
 | 프로필 페이지 | ✅ Live | U10 merged; 최근 본 논문 실데이터 PR #407 + ORCID 로그인 PR #414 — **#347 closed 2026-07-08**, ORCID fully wired live (app registered, secret in SM, task-def rev30, FE flag=1) |
 | 인용 그래프 → 각주 트리 | ✅ Live | DOI node expansion 500 fixed — **PR #357** (provider fail-closed) shipped **v1.5.0**, #342 closed |
-| 트렌드/알림 | ❌ Not started | Never entered requirements — needs inception re-entry |
+| 트렌드/알림 | ✅ Shipped (fork PR #5, 2026-07-23) | U15 follow-topic list + opt-in email digest (watermark job, one-click unsubscribe) merged to `develop` (`39bcebf`); digest efficacy gated on harvest resume (paused) + SES production access — ops follow-ups |
 | 구독제 | ❌ Not started | Never entered requirements — needs inception re-entry |
 | 로그 수집 | ✅ Live | U9 collection healthy (944 events/7d, 0 failures); KPI funnel dashboard + read-complete instrumentation PR #403 merged to develop, #346 closed (main promotion pending) |
 | 개인화 추천 | ✅ Live (v1.15.0) | Shadow (PR #300) → machinery (PR #441/#442) → **flipped LIVE via PR #446** (`SEARCH_RERANK_LIVE`, 2026-07-08) after shadow review; silent no-op healed by PR #454 (profile TTL refresh + category backfill, v1.17.0). #345 closed. US-P5 + keywordWeights deferred |
 | 에이전트: 문헌탐색/근거형성 | ✅ Live (v1.4.0) | PR #338 shipped v1.4.0; **cost-governed since v1.5.0** (PR #364); 근거 카드 + `§` 인용 앵커 (#339, PR #365); 첨부 검증 422 + 500 수정 (PR #373); **첨부 본문 근거 추출 포함** (PR #376) + **세션 재열람·삭제·전체 초기화** (PR #375) — **모두 v1.6.0 배포**; **QT-8 근거화 평가셋 상시화** (#273, PR #383, **v1.7.0**). **PDF 첨부(doc-model 경유) ✅ v1.8.0 MVP + v1.9.0 GROBID(#13)** — Phase 1 완료 |
 | (charter add) 연구아이디어 novelty 에이전트 | ✅ Live (v1.4.0) | PR #349 shipped v1.4.0; cost-governed since v1.5.0 (PR #364: draft-gate + 5/day quota). FE 아티팩트 렌더러 (PR #368) + **P2-b merged** (PR #370) + **Bedrock streaming·timeout 300s** (PR #372) + **원고 업로드 E2E** (PR #376: 디스패치 보류→본문 적재→분석) — **모두 v1.6.0 배포**; **form_evidence 선행**(#251, PR #380) + **Notion export**(#258, PR #382) + **QT-10·소스별 저하 지표**(#259, PR #383) — **모두 v1.7.0 배포**. **PDF 원고(doc-model 경유) ✅ v1.8.0 + v1.9.0 GROBID(#13)** — Phase 1 완료 |
-| 웹검색 레퍼런스 (고려) | ❌ Not started | Novelty agent has GitHub+datasets search; web/news deferred to next cycle |
+| 웹검색 레퍼런스 (고려) | 🟡 Inception — requirements RESOLVED (2026-07-23) | Re-entered as evidence-agent (U11) tool: **FR-49 + C-11 registered** (`web-references.md`, all 8 OQs owner-decided) — S2/OpenAlex no-key APIs, link-back only, port shared with novelty (U12), Noop degradation. Next: stories → design |
 | 온보딩 (고려) | ❌ Not started | Candidate fix for personalization cold-start |
 
 Infra baseline: CI/CD hardening merged (#304/#305), main promotion + v* tag CD path live.
@@ -137,7 +137,19 @@ Ordered by user impact:
 > opt-in only · plain list (no LLM) · **daily harvest PAUSED** (CDK `ArxivDailySchedule`
 > `enabled=False`, resume deferred — digest efficacy depends on it) · SES on `559352512800`
 > (sandbox→production access is an ops follow-up) · keyword/embedding matching.
-> Next: U15 stories → design. The ordering rationale in §6 still holds.
+> **Item 2 ✅ SHIPPED 2026-07-23**: U15 stories(US-TN1~3) → unit registration → design →
+> backend(watermark digest job + one-click unsubscribe)+FE implementation → unit review
+> APPROVE(+fixes) — merged to `develop` via fork PR #5 (`39bcebf`). **Item 3 웹검색 레퍼런스 —
+> inception started 2026-07-23**: requirements at
+> `aidlc-docs/inception/requirements/web-references.md` — framed per §5.3 as an **evidence-agent
+> (U11) tool**, riding U12 novelty's `ExternalSearchPort`/`sanitize_external_query` precedent —
+> **requirements RESOLVED same day**: all 8 OQs owner-decided → **FR-49 + C-11 registered** in
+> `requirements.md`. Decisions: academic no-key APIs (Semantic Scholar·OpenAlex) · general web
+> (not news) · port exposed to U12 novelty too · **link-back only** (no claims participation, no
+> `web:` SourceRef namespace) · provider result metadata only (no page fetch) · absorbed into
+> evidence 30/day quota · **U11 extension** (no new unit) · Noop degradation.
+> Next: U11-extension stories → design.
+> The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
 

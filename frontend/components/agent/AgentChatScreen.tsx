@@ -25,9 +25,11 @@ import type {
 } from '@/lib/agentChat/types';
 import {
   abstainReasonLabel,
+  formatWebReferenceAuthors,
   parseAgentContent,
   type EvidenceResultPayload,
   type EvidenceSourceRef,
+  type WebReference,
 } from '@/lib/agentChat/evidenceResult';
 import {
   SIMILAR_WORK_COLUMNS,
@@ -417,7 +419,9 @@ function AgentModePicker({
       >
         <strong>Research</strong>
         <span>질문을 던지면 여러 논문을 대조해 근거 카드로 정리해요</span>
-        <span className={styles.modeHint}>핵심 주장 · 근거 논문 원문 · 서로 다른 논문 간 상충 여부까지</span>
+        <span className={styles.modeHint}>
+          핵심 주장 · 근거 논문 원문 · 서로 다른 논문 간 상충 여부까지
+        </span>
       </button>
       <button
         type="button"
@@ -657,11 +661,58 @@ function EvidenceResultView({ result }: { result: EvidenceResultPayload }) {
         </article>
       ))}
       <p className={styles.evidenceCoverage}>
-        <span className={styles.evidenceLabel}>검색 범위</span>
-        {' '}참고 논문 {result.coverage.paperCount}편
+        <span className={styles.evidenceLabel}>검색 범위</span> 참고 논문{' '}
+        {result.coverage.paperCount}편
         {result.coverage.queryUsed ? ` · 검색어: ${result.coverage.queryUsed}` : ''}
       </p>
+      <EvidenceWebReferences references={result.webReferences} />
     </div>
+  );
+}
+
+const WEB_REFERENCE_SOURCE_LABEL: Record<WebReference['source'], string> = {
+  semantic_scholar: 'Semantic Scholar',
+  openalex: 'OpenAlex',
+};
+
+// U11 확장(FR-49/US-WR1) — 성공 턴 하단 접이식 "웹 레퍼런스" 섹션. webReferences 부재/빈
+// 배열이면 섹션 자체를 그리지 않는다(BR-WR5 조용한 생략). 텍스트는 React 기본 이스케이프로만
+// 렌더링한다(SEC-5). normalizeTimelineDisplay처럼 테스트를 위해 export한다.
+export function EvidenceWebReferences({ references }: { references?: WebReference[] }) {
+  if (!references || references.length === 0) return null;
+  return (
+    <details className={styles.webReferences} data-testid="evidence-web-references">
+      <summary>
+        <span className={styles.evidenceLabel}>웹 레퍼런스</span>
+        <small>{references.length}건</small>
+      </summary>
+      <ul className={styles.webReferenceList}>
+        {references.map((reference, idx) => {
+          const authors = formatWebReferenceAuthors(reference.authors);
+          // BR-WR4 — 백엔드가 https·호스트를 검증하지만, FE도 http(s) 외 스킴은 링크화하지
+          // 않는다(NoveltySourceRefLinks와 동일한 방어선).
+          const href = /^https?:\/\//.test(reference.url) ? reference.url : null;
+          return (
+            <li key={idx} className={styles.webReference}>
+              {href ? (
+                <a href={href} target="_blank" rel="noopener noreferrer">
+                  {reference.title}
+                </a>
+              ) : (
+                <span>{reference.title}</span>
+              )}
+              <span className={styles.webReferenceMeta}>
+                {authors ? <span>{authors}</span> : null}
+                {reference.year ? <span>{reference.year}</span> : null}
+                <span className={styles.webReferenceSourceBadge}>
+                  {WEB_REFERENCE_SOURCE_LABEL[reference.source]}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }
 
