@@ -26,12 +26,26 @@ CREATE TABLE IF NOT EXISTS _migrations (
 """
 
 
+def _normalize_dsn(dsn: str) -> str:
+    """Strip a SQLAlchemy ``+driver`` dialect suffix so raw psycopg accepts the DSN.
+
+    The app's DATABASE_URL is ``postgresql+psycopg://…`` (SQLAlchemy dialect form), but
+    ``psycopg.connect()`` speaks plain libpq URLs and rejects the ``+driver`` scheme.
+    Normalizing here lets ONE DATABASE_URL drive both the app and this runner instead of
+    forcing callers to maintain two spellings of the same DSN.
+    """
+    scheme, sep, rest = dsn.partition("://")
+    if sep and "+" in scheme:
+        return scheme.split("+", 1)[0] + sep + rest
+    return dsn
+
+
 def apply_migrations(dsn: str, paths: list[str | Path]) -> list[str]:
     """Apply all pending migrations in order. Returns names of newly applied scripts."""
     import psycopg
 
     applied: list[str] = []
-    with psycopg.connect(dsn) as conn:
+    with psycopg.connect(_normalize_dsn(dsn)) as conn:
         conn.execute(_TRACKING_DDL)
         conn.commit()
 
@@ -61,7 +75,7 @@ def pending_migrations(dsn: str, paths: list[str | Path]) -> list[str]:
     """List migration scripts that haven't been applied yet."""
     import psycopg
 
-    with psycopg.connect(dsn) as conn:
+    with psycopg.connect(_normalize_dsn(dsn)) as conn:
         conn.execute(_TRACKING_DDL)
         conn.commit()
         already_applied = {
