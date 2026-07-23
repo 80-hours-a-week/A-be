@@ -64,6 +64,14 @@ import {
   mockSkipOnboarding,
   mockSubmitInterests,
 } from '@/mocks/onboardingFixtures';
+import {
+  mockFollowTopic,
+  mockGetDigestSettings,
+  mockListFollows,
+  mockPutDigestSettings,
+  mockUnfollowTopic,
+  mockUnsubscribe,
+} from '@/mocks/trendsFixtures';
 import type { SavedSearchCreateDTO, LibraryItemCreateDTO } from '@/types/generated';
 import type { CitationNode } from '@/types/citationGraph';
 import type { BehaviorEventCreate } from '@/types/personalization';
@@ -107,6 +115,9 @@ export class MockTransport implements Transport {
 
     const onboardingRes = this.routeOnboarding(req, path);
     if (onboardingRes) return onboardingRes;
+
+    const trendsRes = this.routeTrends(req, path);
+    if (trendsRes) return trendsRes;
 
     const agentRes = this.routeAgent(req, path);
     if (agentRes) return agentRes;
@@ -382,6 +393,29 @@ export class MockTransport implements Transport {
     }
     if (path === '/onboarding/orcid-suggestions' && req.method === 'GET') {
       return { status: 200, body: mockOrcidSuggestions() };
+    }
+    return null;
+  }
+
+  // U15 trends routes — follows/settings are localStorage-backed (owner-scoped server rows
+  // in real mode); validation mirrors the backend boundary (422 DTO bounds, 409 cap/dup,
+  // 400 bad unsubscribe token) so every error path is demoable without the gateway.
+  private routeTrends(req: TransportRequest, path: string): TransportResponse | null {
+    if (path === '/trends/follows') {
+      if (req.method === 'GET') return { status: 200, body: mockListFollows() };
+      if (req.method === 'POST') return mockFollowTopic(req.body);
+    }
+    const followId = path.match(/^\/trends\/follows\/([^/]+)$/);
+    if (followId && req.method === 'DELETE') {
+      const list = mockUnfollowTopic(decodeURIComponent(followId[1]));
+      return list ? { status: 200, body: list } : { status: 404, body: null };
+    }
+    if (path === '/trends/settings') {
+      if (req.method === 'GET') return { status: 200, body: mockGetDigestSettings() };
+      if (req.method === 'PUT') return mockPutDigestSettings(req.body);
+    }
+    if (path === '/trends/unsubscribe' && req.method === 'POST') {
+      return mockUnsubscribe(req.body);
     }
     return null;
   }

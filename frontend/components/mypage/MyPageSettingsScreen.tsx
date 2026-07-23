@@ -8,6 +8,7 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { StateView } from '../StateView';
 import { AuthField } from '../AuthField';
+import { TrendsSettingsSection } from './TrendsSettingsSection';
 import styles from './MyPageScreen.module.css';
 import authStyles from '../AuthForm.module.css';
 import type { ConsentSettingsVM } from '@/types/mypage';
@@ -328,6 +329,10 @@ export function MyPageSettingsScreen() {
           />
         </label>
       </section>
+
+      {/* U15 트렌드/알림 — 팔로우 주제 + 이메일 다이제스트. 자체 로드/오류 격리(fail-soft)라
+          이 섹션이 실패해도 나머지 설정은 그대로 동작한다(BR-TN5: 개인화 상태 무접촉). */}
+      <TrendsSettingsSection />
 
       <section className={styles.card} data-testid="mypage-personalization-data">
         <h2 className={styles.cardTitle}>맞춤 서비스</h2>

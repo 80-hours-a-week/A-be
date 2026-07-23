@@ -67,6 +67,14 @@ import type {
   SkipResult,
 } from '@/types/onboarding';
 import type {
+  DigestCadence,
+  DigestSettingsVM,
+  FollowedTopicVM,
+  FollowListVM,
+  UnsubscribeResultVM,
+} from '@/types/trends';
+import { MAX_FOLLOWED_TOPICS } from '@/types/trends';
+import type {
   AgentMode,
   AgentAttachment,
   AgentAttachmentKind,
@@ -635,6 +643,89 @@ export class ApiClient {
       idempotent: true,
     });
     if (res.status === 200) return res.body as OrcidSuggestionsResponse;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  // ---- trends / notifications (U15, US-TN1/TN2) -------------------------
+
+  /** The user's explicit follow-topic list (owner-scoped, disjoint from U14/U9 interest
+   * signals — BR-TN5). `maxTopics` rides along so the FE cap mirrors the server bound. */
+  async listFollowedTopics(): Promise<FollowListVM> {
+    const res = await this.request({ method: 'GET', path: '/trends/follows', idempotent: true });
+    if (res.status === 200) return res.body as FollowListVM;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** Register a follow topic (US-TN1 — embedded once server-side, BR-TN7). DTO bounds →
+   * 422; the per-user cap and casefold duplicates are 409 state conflicts, mapped here to
+   * the two Korean messages so the mock and real backends surface identically. */
+  async followTopic(topic: string): Promise<FollowedTopicVM> {
+    const res = await this.request({
+      method: 'POST',
+      path: '/trends/follows',
+      body: { topic },
+      idempotent: false,
+    });
+    if (res.status === 200 || res.status === 201) return res.body as FollowedTopicVM;
+    if (res.status === 409) {
+      const detail = serverMessage(res.body);
+      const isLimit = typeof detail === 'string' && detail.includes('limit');
+      throw new UserFacingError(
+        'unknown',
+        isLimit
+          ? `팔로우 주제는 최대 ${MAX_FOLLOWED_TOPICS}개까지 등록할 수 있어요.`
+          : '이미 팔로우한 주제예요.',
+      );
+    }
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** Owner-scoped unfollow — the backend responds with the updated list (another user's
+   * topic id is indistinguishable from absent → 404, normalized like any other error). */
+  async unfollowTopic(topicId: string): Promise<FollowListVM> {
+    const res = await this.request({
+      method: 'DELETE',
+      path: `/trends/follows/${encodeURIComponent(topicId)}`,
+      idempotent: false,
+    });
+    if (res.status === 200) return res.body as FollowListVM;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** Digest opt-in/cadence (US-TN2). `optedIn` defaults false server-side (BR-TN1). */
+  async getDigestSettings(): Promise<DigestSettingsVM> {
+    const res = await this.request({ method: 'GET', path: '/trends/settings', idempotent: true });
+    if (res.status === 200) return res.body as DigestSettingsVM;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** Update opt-in/cadence — takes effect immediately (BR-TN1/TN4). */
+  async updateDigestSettings(
+    optedIn: boolean,
+    cadence: DigestCadence,
+  ): Promise<DigestSettingsVM> {
+    const res = await this.request({
+      method: 'PUT',
+      path: '/trends/settings',
+      body: { optedIn, cadence },
+      idempotent: false,
+    });
+    if (res.status === 200) return res.body as DigestSettingsVM;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** No-login one-click opt-out from the emailed link (BR-TN4). The signed token is the
+   * only credential; the backend never 5xxes here — every invalid/stale token is a 400,
+   * surfaced as the single user-facing "link invalid" message. */
+  async unsubscribeDigest(token: string): Promise<UnsubscribeResultVM> {
+    const res = await this.request({
+      method: 'POST',
+      path: '/trends/unsubscribe',
+      body: { token },
+      idempotent: false,
+    });
+    if (res.status === 200) return res.body as UnsubscribeResultVM;
+    if (res.status === 400) throw new UserFacingError('unknown', '링크가 유효하지 않습니다.');
     throw normalizeHttpError(res.status, serverMessage(res.body));
   }
 
