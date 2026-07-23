@@ -174,10 +174,11 @@ class TrendsConfig:
 
     @classmethod
     def from_env(cls) -> TrendsConfig:
+        # Clamp to the cosine-score domain: a negative env value must not admit every
+        # candidate, and >1.0 must not silently disable matching semantics.
+        threshold = _env_float("DOCSURI_TRENDS_MATCH_THRESHOLD", _DEFAULT_MATCH_THRESHOLD)
         return cls(
-            match_threshold=_env_float(
-                "DOCSURI_TRENDS_MATCH_THRESHOLD", _DEFAULT_MATCH_THRESHOLD
-            ),
+            match_threshold=min(1.0, max(0.0, threshold)),
             per_topic_cap=_env_int("DOCSURI_TRENDS_TOPIC_CAP", _DEFAULT_TOPIC_CAP),
             digest_cap=_env_int("DOCSURI_TRENDS_DIGEST_CAP", _DEFAULT_DIGEST_CAP),
             app_url=os.getenv("PUBLIC_APP_URL", "").strip().rstrip("/"),
@@ -365,6 +366,11 @@ class TrendsService:
             report.usersConsidered += 1
             try:
                 outcome = self._run_user(settings, now)
+                if outcome == "sent":
+                    # Durability: the email is an irreversible side effect, so persist THIS
+                    # user's watermark/send-log immediately — a mid-sweep crash must not roll
+                    # back delivered users' watermarks (that would re-send next run).
+                    self._repo.commit()
             except Exception:  # noqa: BLE001 — BR-TN3: per-user isolation, loop never stops
                 log.warning(
                     "trends: digest failed for a user (watermark kept → natural retry)",
@@ -377,7 +383,7 @@ class TrendsService:
                 report.sent += 1
             elif outcome == "not_due":
                 report.skippedNotDue += 1
-            elif outcome == "empty":
+            elif outcome in ("empty", "opted_out"):
                 report.skippedEmpty += 1
             else:
                 report.failed += 1
@@ -390,12 +396,20 @@ class TrendsService:
         matches = self._match_all_topics(settings.userId, since)
         if not matches:
             return "empty"  # BR-TN2: no send AND the watermark stays put (accumulates)
+        # Re-check opt-in RIGHT before the send: the sweep snapshot is taken once, so a user
+        # who opted out (settings PUT or token unsubscribe) mid-sweep must not receive this
+        # sweep's digest (BR-TN1/TN4 즉시 반영). Watermark untouched — nothing was sent.
+        fresh = self._repo.get_settings(settings.userId)
+        if fresh is None or not fresh.optedIn:
+            return "opted_out"
         to_email = self._recipients.get_email(settings.userId)
         if not to_email:
             log.warning("trends: no deliverable email for an opted-in user — will retry")
             return "failed"
         token = self.issue_unsubscribe_token(settings.userId)
-        unsubscribe_url = f"{self._config.app_url}/trends/unsubscribe?token={token}"
+        # FE route is /unsubscribe (frontend/app/unsubscribe/page.tsx, /verify-email precedent)
+        # — NOT the API path /trends/unsubscribe, which the page POSTs to itself.
+        unsubscribe_url = f"{self._config.app_url}/unsubscribe?token={token}"
         subject, text, body_html = render_digest_email(
             matches, app_url=self._config.app_url, unsubscribe_url=unsubscribe_url
         )

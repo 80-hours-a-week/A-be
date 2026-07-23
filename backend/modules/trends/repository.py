@@ -46,6 +46,11 @@ class TrendsRepository(Protocol):
     def record_send(self, user_id: str, sent_at: datetime, paper_count: int) -> None: ...
     def list_send_log(self, user_id: str) -> list[DigestSendRecord]: ...
 
+    # durability boundary: run_digest calls this after EACH successfully sent user so a
+    # mid-sweep crash cannot roll back delivered users' watermarks (email is irreversible —
+    # a rolled-back watermark means a duplicate send next run).
+    def commit(self) -> None: ...
+
 
 def _apply_settings_change(
     current: DigestSettings | None,
@@ -76,6 +81,8 @@ class InMemoryTrendsRepository:
         self._topics: dict[str, list[FollowedTopic]] = {}
         self._settings: dict[str, DigestSettings] = {}
         self._send_log: dict[str, list[DigestSendRecord]] = {}
+        # in-memory writes are immediate; the counter lets tests spy the durability boundary
+        self.commits = 0
 
     def list_topics(self, user_id: str) -> list[FollowedTopic]:
         with self._lock:
@@ -127,6 +134,10 @@ class InMemoryTrendsRepository:
     def list_send_log(self, user_id: str) -> list[DigestSendRecord]:
         with self._lock:
             return list(self._send_log.get(user_id, []))
+
+    def commit(self) -> None:
+        with self._lock:
+            self.commits += 1
 
 
 class Base(DeclarativeBase):
@@ -273,6 +284,9 @@ class SqlTrendsRepository:
             )
             for row in rows
         ]
+
+    def commit(self) -> None:
+        self._s.commit()
 
 
 __all__ = [

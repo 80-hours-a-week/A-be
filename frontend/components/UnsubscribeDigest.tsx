@@ -68,8 +68,8 @@ export function UnsubscribeDigest() {
         다이제스트 수신을 해지할까요?
       </p>
       <p className={styles.formNotice}>
-        해지하면 팔로우 주제의 새 논문 이메일이 더 이상 발송되지 않아요. 설정에서 언제든 다시 켤
-        수 있습니다.
+        해지하면 팔로우 주제의 새 논문 이메일이 더 이상 발송되지 않아요. 설정에서 언제든 다시 켤 수
+        있습니다.
       </p>
       <button
         type="button"

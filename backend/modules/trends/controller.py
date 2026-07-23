@@ -12,6 +12,8 @@ Bedrock query embedder when the corpus read path is configured.
 
 from __future__ import annotations
 
+import logging
+
 from docsuri_shared.authz import Principal
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -35,6 +37,8 @@ from .service import (
     UnsubscribeTokenSigner,
     build_token_signer,
 )
+
+log = logging.getLogger("docsuri.backend.trends")
 
 router = APIRouter(prefix="/trends", tags=["Trends"])
 
@@ -170,6 +174,9 @@ async def unsubscribe(
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 — contract: the unsubscribe path never 5xxes
+        # A real bug must stay distinguishable from a garbled token: the client still gets
+        # the generic 400, but the traceback lands in the logs.
+        log.warning("trends: unsubscribe failed unexpectedly", exc_info=True)
         raise HTTPException(status_code=400, detail="invalid unsubscribe token") from exc
 
 

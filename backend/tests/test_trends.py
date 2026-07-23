@@ -384,6 +384,87 @@ def test_digest_email_contains_titles_and_links_only() -> None:
     assert "abstract" not in text.lower()
 
 
+def test_sent_digest_links_to_frontend_unsubscribe_route() -> None:
+    """Regression (unit review BLOCKING): the REAL run_digest path must emit the FE route
+    `/unsubscribe?token=` — not the API path `/trends/unsubscribe` — in the email body."""
+    repo = InMemoryTrendsRepository()
+    user = str(uuid4())
+    _opted_in_user(repo, user)
+    email = RecordingEmail()
+    runner = _service(
+        repo,
+        search=FixtureSearch([_paper("2401.0001", 0.9, T0 + timedelta(hours=1))]),
+        email=email,
+        recipients=DictEmails({user: "a@test"}),
+    )
+
+    report = runner.run_digest(T0 + timedelta(hours=2))
+
+    assert report.sent == 1
+    _, _, text, body_html = email.sent[0]
+    for body in (text, body_html):
+        assert "/unsubscribe?token=" in body
+        assert "/trends/unsubscribe" not in body
+
+
+class OptOutTriggeringEmail(RecordingEmail):
+    """Simulates a mid-sweep opt-out: delivering user A's digest flips user B's optedIn off
+    (as a settings PUT / token unsubscribe landing while the loop is mid-flight would)."""
+
+    def __init__(self, repo, flip_user: str) -> None:
+        super().__init__()
+        self._repo = repo
+        self._flip_user = flip_user
+
+    def send(self, to, subject, text, html) -> bool:
+        result = super().send(to, subject, text, html)
+        flip_at = T0 + timedelta(hours=2)
+        self._repo.put_settings(self._flip_user, False, DigestCadence.DAILY, flip_at)
+        return result
+
+
+def test_opt_out_mid_sweep_prevents_that_sweeps_send() -> None:
+    repo = InMemoryTrendsRepository()
+    user_a, user_b = str(uuid4()), str(uuid4())  # insertion order: A is visited first
+    _opted_in_user(repo, user_a)
+    _opted_in_user(repo, user_b)
+    email = OptOutTriggeringEmail(repo, flip_user=user_b)
+    runner = _service(
+        repo,
+        search=FixtureSearch([_paper("2401.0001", 0.9, T0 + timedelta(hours=1))]),
+        email=email,
+        recipients=DictEmails({user_a: "a@test", user_b: "b@test"}),
+    )
+
+    report = runner.run_digest(T0 + timedelta(hours=2))
+
+    assert report.sent == 1
+    assert [to for to, *_ in email.sent] == ["a@test"]  # B receives NOTHING
+    assert repo.list_send_log(user_b) == []
+    assert repo.get_settings(user_b).lastSentAt is None  # watermark untouched
+
+
+def test_commit_after_each_successfully_sent_user() -> None:
+    """Durability boundary: one commit per SENT user (email is irreversible — a mid-sweep
+    crash must not roll delivered watermarks back into a re-send)."""
+    repo = InMemoryTrendsRepository()
+    sent_user, empty_user = str(uuid4()), str(uuid4())
+    _opted_in_user(repo, sent_user)
+    service = _service(repo)  # empty_user opts in but follows nothing → empty digest
+    service.put_settings(empty_user, True, DigestCadence.DAILY, now=T0)
+    runner = _service(
+        repo,
+        search=FixtureSearch([_paper("2401.0001", 0.9, T0 + timedelta(hours=1))]),
+        email=RecordingEmail(),
+        recipients=DictEmails({sent_user: "a@test", empty_user: "b@test"}),
+    )
+
+    report = runner.run_digest(T0 + timedelta(hours=2))
+
+    assert (report.sent, report.skippedEmpty) == (1, 1)
+    assert repo.commits == 1  # committed for the sent user only
+
+
 # ── HTTP surface: authz fail-closed, owner-scoping, DTO bounds, no-login unsubscribe ─────────
 
 

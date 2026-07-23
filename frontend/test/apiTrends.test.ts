@@ -9,9 +9,10 @@ import type { Transport, TransportRequest, TransportResponse } from '@/lib/api/t
 
 const fast = { timeoutMs: 1000, retryBackoffMs: 1 };
 
-function recorder(
-  impl: (req: TransportRequest) => TransportResponse,
-): { transport: Transport; calls: TransportRequest[] } {
+function recorder(impl: (req: TransportRequest) => TransportResponse): {
+  transport: Transport;
+  calls: TransportRequest[];
+} {
   const calls: TransportRequest[] = [];
   return {
     calls,

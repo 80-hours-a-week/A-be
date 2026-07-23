@@ -65,9 +65,7 @@ export function TrendsSettingsSection() {
     void (async () => {
       try {
         const created = await getApiClient().followTopic(cleaned);
-        setFollows((prev) =>
-          prev ? { ...prev, topics: [...prev.topics, created] } : prev,
-        );
+        setFollows((prev) => (prev ? { ...prev, topics: [...prev.topics, created] } : prev));
         setTopicInput('');
       } catch (err) {
         setFollowError(

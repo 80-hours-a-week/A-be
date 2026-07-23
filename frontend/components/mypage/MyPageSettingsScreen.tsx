@@ -347,7 +347,11 @@ export function MyPageSettingsScreen() {
           />
         </label>
         {!personalization ? (
-          <p className={styles.muted} role="status" data-testid="mypage-personalization-unavailable">
+          <p
+            className={styles.muted}
+            role="status"
+            data-testid="mypage-personalization-unavailable"
+          >
             맞춤 서비스 설정을 불러오지 못했습니다.
           </p>
         ) : null}

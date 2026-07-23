@@ -700,10 +700,7 @@ export class ApiClient {
   }
 
   /** Update opt-in/cadence — takes effect immediately (BR-TN1/TN4). */
-  async updateDigestSettings(
-    optedIn: boolean,
-    cadence: DigestCadence,
-  ): Promise<DigestSettingsVM> {
+  async updateDigestSettings(optedIn: boolean, cadence: DigestCadence): Promise<DigestSettingsVM> {
     const res = await this.request({
       method: 'PUT',
       path: '/trends/settings',

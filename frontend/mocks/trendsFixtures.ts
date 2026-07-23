@@ -3,7 +3,12 @@
 // state (the onboardingFixtures pattern) so follows/opt-in survive reloads and the
 // desktop phone-preview iframe in mock mode. Validation mirrors the backend boundary
 // exactly: DTO bounds → 422, cap/duplicate state conflicts → 409, bad token → 400.
-import type { DigestCadence, DigestSettingsVM, FollowedTopicVM, FollowListVM } from '@/types/trends';
+import type {
+  DigestCadence,
+  DigestSettingsVM,
+  FollowedTopicVM,
+  FollowListVM,
+} from '@/types/trends';
 import { MAX_FOLLOWED_TOPICS, MAX_TOPIC_LENGTH } from '@/types/trends';
 
 const FOLLOWS_KEY = 'docsuri-mock-trends-follows';
