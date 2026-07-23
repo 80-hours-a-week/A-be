@@ -1,7 +1,7 @@
 # DocSuri Production Roadmap — 2026-07
 
 > **Date**: 2026-07-03 · **Baseline**: **main at v1.14.0** (`93cece9f`) — Phase 2 hardening board **shipped to prod**; v1.14 promotion (2026-07-08) ships #345 shadow-metric machinery + #344 audit step + parser/render fixes.
-> **Updated**: 2026-07-23 — **🏁 Phases 0–2 CLOSED — COMPLETE; Phase 3 OPEN** (final reconcile vs GitHub + fork state). Phase 0 ✅ · Phase 1 ✅ (v1.9.0) · Phase 2 ✅ — every tracked issue terminal (#343/#344/#345/#347/#348/#167 closed; #419/#423/#424/#425/#427 merged 2026-07-07). **Phase 3 (§5) is the remaining open scope** — inception re-entry started 2026-07-23 with 온보딩: requirements draft at `aidlc-docs/inception/requirements/onboarding.md` (FR-44~45·C-7~8 제안, OQ 7건 — 승인 게이트 대기). Endgame after the last board update below:
+> **Updated**: 2026-07-23 — **🏁 Phases 0–2 CLOSED — COMPLETE; Phase 3 OPEN** (final reconcile vs GitHub + fork state). Phase 0 ✅ · Phase 1 ✅ (v1.9.0) · Phase 2 ✅ — every tracked issue terminal (#343/#344/#345/#347/#348/#167 closed; #419/#423/#424/#425/#427 merged 2026-07-07). **Phase 3 (§5) is the remaining open scope** — inception re-entry started 2026-07-23 with 온보딩 — **requirements RESOLVED same day**: OQ 7건 전건 오너 결정 → **FR-44~46·C-7~8 등재 + FR-39 개정**(`onboarding.md` → `requirements.md`), 신규 유닛 **U14**, US-P5 선행 포함. Next: U14 stories → design. Endgame after the last board update below:
 > - ✅ **#345 LIVE** — shadow review (synthetic + algorithm) approved the flip; **PR #446** put the US-P4 boost on the live search order via `SEARCH_RERANK_LIVE` (**v1.15.0**, 2026-07-08). CDK `compute_stack.py` pins the flag default `"true"` (drift-proof) with `-c search_rerank_live=false` as no-code rollback; live api task-def rev31. Follow-up **PR #454** healed a silent no-op (profile TTL refresh + category backfill, v1.17.0). US-P5 + keywordWeights carried forward.
 > - ✅ **Final sprint v1.15→v1.19** (07-08→07-10): privacy/terms 페이지+탈퇴 보관정책 정합(#447, v1.16.0) · u7 요약 출처 앵커 수정(#456/#457, v1.17.1) · u7 전문 번역 표준 용어 마스킹 결정적 강제(#462, v1.18.0) · u7 CI job(#459) · **full user-story QA pass — 70 stories**(#464) + search cold-path 504·US-D6 기권 플로어 수정(#465, v1.18.1) + QA 갭 백로그 8 워크스트림 해소(#467, v1.18.2) · EV2 sync-turn SSE 스트리밍(NFR-P6 #266, #469). **Terminal prod release: `v1.19.0` (2026-07-10)** — org repo (80-hours-a-week) frozen thereafter.
 > - ⏭️ **Deferred, carried to the local-serving backlog**: #344 native_html GROBID re-parse (corpus quality, non-hardening) · node24 tag-action bump (moot — org CI retired with the freeze). **Phase 3 (§5) is NOT deferred** — it remains this roadmap's open scope, now entering inception.
@@ -125,9 +125,10 @@ Ordered by user impact:
 > **Status (2026-07-23)**: none of these entered requirements during the team cycle (ended at
 > v1.19.0, 2026-07-10); the product moved to the local-serving era. **Phase 3 is now active**:
 > inception re-entry began with item 1 — 온보딩 requirements draft at
-> `aidlc-docs/inception/requirements/onboarding.md` (FR-44~45·C-7~8 proposed; 7 open questions
-> incl. the keyword-vs-categoryWeights seeding tension with the live US-P4 boost — human approval
-> gate before CONSTRUCTION). The ordering rationale in §6 still holds.
+> `aidlc-docs/inception/requirements/onboarding.md` — all 7 open questions owner-resolved
+> 2026-07-23: FR-44~46 + C-7~8 registered in `requirements.md`, FR-39 amended (interest-set as a
+> meaningful behavior event), new unit **U14**, US-P5 pulled forward into the track. Seeding rides
+> the event path only (QT-7-safe). Next: U14 stories → design. The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
 
