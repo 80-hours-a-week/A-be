@@ -60,7 +60,7 @@
 
 | Plan item | Status | Notes |
 |---|---|---|
-| 논문 검색 | ✅ Live | Hybrid search over ~1.5M-chunk corpus; daily auto-harvest (EventBridge 15:00 KST); pre-2026 historical drain in progress |
+| 논문 검색 | ✅ Live | Hybrid search over ~1.5M-chunk corpus; daily auto-harvest (EventBridge 15:00 KST) — **paused 2026-07-23** (owner decision, trends OQ-5; CDK rule `enabled=False`, resume deferred); pre-2026 historical drain in progress |
 | 논문 요약/번역 | ✅ Live | Grounded summaries/translation; glossary redesign (PR #334); source-anchor structural resolution + stale-docmodel self-heal (PR #351); tool-use structured output (PR #356, shipped v1.4.0); summary worker now its own ECS unit (PR #366, **v1.5.0**) — 무한 pending 사고 클래스 prod 종결; worker crash + 수식/MathML sanitize + glossary 편집 UI (PR #371, **v1.6.0**); physics 패키지 수식 매크로 렌더 — **PR #381, v1.7.0**(유진, #371 후속) |
 | 프로필 페이지 | ✅ Live | U10 merged; 최근 본 논문 실데이터 PR #407 + ORCID 로그인 PR #414 — **#347 closed 2026-07-08**, ORCID fully wired live (app registered, secret in SM, task-def rev30, FE flag=1) |
 | 인용 그래프 → 각주 트리 | ✅ Live | DOI node expansion 500 fixed — **PR #357** (provider fail-closed) shipped **v1.5.0**, #342 closed |
@@ -128,7 +128,16 @@ Ordered by user impact:
 > `aidlc-docs/inception/requirements/onboarding.md` — all 7 open questions owner-resolved
 > 2026-07-23: FR-44~46 + C-7~8 registered in `requirements.md`, FR-39 amended (interest-set as a
 > meaningful behavior event), new unit **U14**, US-P5 pulled forward into the track. Seeding rides
-> the event path only (QT-7-safe). Next: U14 stories → design. The ordering rationale in §6 still holds.
+> the event path only (QT-7-safe). **Item 1 ✅ SHIPPED same day**: U14 stories(US-OB1~4) → unit
+> registration → design → backend+FE implementation → unit review APPROVE(+fixes) — merged to
+> `develop` via fork PR #4 (`6ca4402`). **Item 2 트렌드/알림 — inception started 2026-07-23**:
+> requirements at `aidlc-docs/inception/requirements/trends-notifications.md` — **all 8 open
+> questions owner-resolved 2026-07-23**: FR-47~48 + C-9~10 registered in `requirements.md`, new
+> unit **U15**. Decisions: explicit follow list (not U14 interests) · daily default, settings-managed ·
+> opt-in only · plain list (no LLM) · **daily harvest PAUSED** (CDK `ArxivDailySchedule`
+> `enabled=False`, resume deferred — digest efficacy depends on it) · SES on `559352512800`
+> (sandbox→production access is an ops follow-up) · keyword/embedding matching.
+> Next: U15 stories → design. The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
 

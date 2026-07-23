@@ -16,6 +16,7 @@ _DEFAULT_PATHS = [
     "backend/modules/library/migrations",
     "backend/modules/personalization/migrations",
     "backend/modules/onboarding/migrations",
+    "backend/modules/trends/migrations",
     "backend/modules/research/migrations",
     "backend/modules/novelty/migrations",
     "backend/modules/evidence/migrations",

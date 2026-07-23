@@ -22,6 +22,7 @@
 | **U11 Evidence Agent** *(2026-06-29 편입 — 재인셉션 Phase 4 / requirements 초안 "[U4]" 오기 → U11 정정 2026-06-30)* | 로그인 필수 대화형 다논문 문헌탐색·근거형성 Agent. 사용자 질의/첨부에 대해 여러 논문을 교차확인해 핵심 주장·방법·결과 수치·한계를 추출·비교하고 쟁점 오버레이로 제시; 근거 없으면 기권(FR-5). 세션·결과 owner-scoped 영속. EvidenceFormationPort(D5)를 통해 U12(novelty Agent)에 Tool로 노출 | API 모듈 (+비동기 잡 옵션) | ① API (+③ 잡 옵션) | `backend/modules/evidence_agent/` | 동기 REST(SSE 스트리밍) + 비동기 잡 (장분석) |
 | **U12 Novelty Agent** *(2026-06-29 편입 / 번호 확정 2026-06-30 — requirements 초안 "[신규]")* | 차별화(novelty)/연구아이디어 형성 Agent. 자연어 의도·업로드 원고에서 EvidenceFormationPort(U11)·U2 `full` 검색·GitHub/데이터셋 외부 탐색을 소비해 유사 연구 정리·bounded 차별화 아이디어·실험 계획·원고 위험 신호 생성; 단계별 진행상태·owner-scoped 저장·승인형 Notion export; 근거 없으면 기권(FR-5). FR-30~35·US-NV1~9·QT-10·NFR-P5/R3 | 독립 Agent 워커 (+비동기 잡) | ⑤ novelty 워커 (`Docsuri-Novelty` 스택, `NOVELTY_AGENT_ENABLED` 게이트) | `construction/novelty-agent/` (코드/CDK는 구 U11 엄브렐러 네이밍 잔존) | 비동기 잡(생성/폴링/취소) |
 | **U14 Onboarding** *(2026-07-23 편입 — Phase 3)* | 가입/차기 로그인 시 관심사 수집(arXiv 카테고리 픽커, 스킵 가능) + ORCID 프로필·저작 관심사 유도 → **관심사 설정 행동 이벤트**(FR-39 개정)로 U9 프로필 시딩(`categoryWeights`+`keywordWeights`) — 개인화 콜드스타트 해소. US-P5 선행 포함. FR-44~46·US-OB1~4·C-7/C-8 | API 모듈 + FE 플로우 | ① API (+④ 프런트엔드) | `backend/modules/onboarding/` *(제안 — 설계 단계 확정)* · `frontend/`(픽커 플로우) | 동기 REST + 비차단 이벤트 기록 |
+| **U15 Trends/Notifications** *(2026-07-23 편입 — Phase 3)* | 명시적 팔로우 주제 목록(설정 UI, U14/U9 관심 프로필과 별개) + **옵트인** 이메일 다이제스트 — harvest 신규 논문을 키워드/임베딩 유사도로 매칭해 plain list 발송(기본 daily·사용자 설정, 기존 `EMAIL_PROVIDER` 경로 = SES on `559352512800`). FR-47~48·US-TN1~3·C-9/C-10 | API 모듈 + 배치 발송 잡 + FE 설정 플로우 | ① API (+③ 잡) (+④ 프런트엔드) | `backend/modules/trends/` *(제안 — 설계 단계 확정)* · `frontend/`(설정 플로우) | 동기 REST + 스케줄 배치 발송 |
 > **U6 분할 주석**: U6는 두 곳에 산다 — (a) **게이트웨이 미들웨어**(authn/authz·검증·레이트리밋·비용 상태·근거화 강제 후크)는 API 배포 단위 ① 내부, (b) **Ops 워커**(AI 인시던트 탐지기·대시보드)는 이벤트 백본 소비 독립 워커 ③.
 
 > **U7 주석 (요약/번역)**: U7은 결과 카드의 **온디맨드 보조 기능**(검색 SLA NFR-P1 비대상, NFR-P2). U6 게이트웨이를 단일 진입으로 도달하며, **U1 DocModel/FullText(S3 read = capability)·U6 근거화 후크/비용 게이트(`shared/ports` lib)에 의존**한다(U2와 동일 패턴 — 코드 순환 없음). LLM 호출은 U2 검색과 별개 경로. 대부분 단일 콜 동기 스트리밍, **초장문(map-reduce)만 비동기 잡**(배포 ③). 산출물은 S3 영구 + Redis 핫캐시(키 immutable, 논문당 평생 1회 생성).
@@ -37,6 +38,8 @@
 > **연구 에이전트 번호 재부여 완료(2026-06-29 / U12 빌드 반영 2026-06-30)**: 구 통합 "U11 Research Agent"는 폐기되고 **U11(문헌탐색·근거형성) / U12(차별화·연구아이디어 novelty)**로 분리 확정(재인셉션 차터 §4). 둘 다 본 표에 정의. **U12(novelty)는 별도 인셉션 사이클로 이미 빌드됨** — 요구사항 FR-30~35·스토리 US-NV1~9·QT-10·NFR-P5/R3, 설계/코드 `construction/novelty-agent/`, 배포 `Docsuri-Novelty` 스택(`NOVELTY_AGENT_ENABLED`). (코드/CDK는 구 U11 엄브렐러 네이밍 잔존 — 인셉션 유닛 번호는 U12.)
 >
 > **U14 주석 (온보딩)**: U14는 시딩 이벤트의 **생산자**일 뿐, 프로필 저장·집계는 U9 소유를 유지한다(직접 프로필 기록 금지 — C-7, TTL/재집계 소실 방지). 픽커/ORCID 유도 실패는 가입·로그인을 막지 않는 비차단 저하(NFR-P4). 결정 기록: `inception/requirements/onboarding.md`(OQ 7건 오너 결정, 2026-07-23).
+>
+> **U15 주석 (트렌드/알림)**: 다이제스트 실효는 **daily harvest 재개**(오너 추후 결정 — 현재 CDK `ArxivDailySchedule` `enabled=False`)에 종속 — U15 빌드/테스트는 기존 코퍼스로 가능. 매칭은 기존 코퍼스 임베딩 재사용, 팔로우 주제는 등록 시 1회 임베딩. 옵트인 전 무발송(FR-48), 발송 실패는 타 사용자·타 기능 무영향 비차단 저하. **SES sandbox→production access**(계정 `559352512800`)와 로컬 서빙용 자격증명 방식은 운영/설계 후속. 결정 기록: `inception/requirements/trends-notifications.md`(OQ 8건 오너 결정, 2026-07-23).
 
 ## 배포 단위 (UQ3=A)
 1. **API 서비스** — U2 + U3 + U4 + **U7 + U8 + U9 + U11** + U6 게이트웨이 미들웨어 (동기 REST, 모듈형 모놀리스)

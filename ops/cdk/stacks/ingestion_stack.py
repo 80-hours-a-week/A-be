@@ -230,6 +230,9 @@ class IngestionStack(Stack):
             self, "ArxivDailySchedule",
             rule_name="docsuri-arxiv-daily",
             schedule=events.Schedule.cron(hour="6", minute="0"),  # 06:00 UTC = 15:00 KST
+            # Owner decision 2026-07-23 (trends-notifications OQ-5): daily harvest paused for
+            # now — scheduler revisit deferred. Flip back to True (or drop the kwarg) to resume.
+            enabled=False,
             targets=[
                 targets.SqsQueue(
                     self.queue,
