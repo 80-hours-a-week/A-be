@@ -23,6 +23,7 @@ def utc_now() -> datetime:
 ALLOWED_CATEGORIES: tuple[str, ...] = ("cs.AI", "cs.CL", "cs.CV", "cs.LG", "stat.ML")
 
 _MAX_KEYWORDS = 20
+_MAX_RAW_ITEMS = 32  # raw-list bound enforced by Field before validators run (review SECURITY-05)
 _MAX_KEYWORD_LENGTH = 64
 
 
@@ -55,8 +56,8 @@ class InterestSelection(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    categories: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list, max_length=_MAX_RAW_ITEMS)
+    keywords: list[str] = Field(default_factory=list, max_length=_MAX_RAW_ITEMS)
     source: Literal["onboarding_picker", "orcid_derived"] = "onboarding_picker"
 
     @field_validator("categories")

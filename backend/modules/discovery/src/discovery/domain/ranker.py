@@ -48,6 +48,8 @@ def _record_boost(record, boosts: dict[str, float]) -> float:
     # matched no category nudges records whose TITLE mentions it (case-insensitive substring) —
     # same ceiling, same top band, no new ranking machinery. Records without a title
     # (stubs/legacy) skip cleanly. Strongest |boost| wins so the pick is dict-order independent.
+    # Category keys (e.g. "cs.LG") are technically eligible here too — accepted: arXiv titles
+    # don't contain literal category codes, and splitting the map isn't worth the plumbing.
     title = str(getattr(record, "title", "") or "").lower()
     if title:
         matches = [

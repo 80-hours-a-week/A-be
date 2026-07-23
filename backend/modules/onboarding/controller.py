@@ -61,6 +61,7 @@ def _interest_recorder(request: Request):
 
 
 PRINCIPAL_DEP = Depends(get_principal)
+ACCOUNT_REPO_DEP = Depends(get_account_repo)
 REPO_DEP = Depends(get_repo)
 
 
@@ -104,7 +105,7 @@ async def skip_onboarding(
 @router.get("/orcid-suggestions", response_model=OrcidSuggestionsResponse)
 async def orcid_suggestions(
     principal: Principal = PRINCIPAL_DEP,
-    account_repo=Depends(get_account_repo),
+    account_repo=ACCOUNT_REPO_DEP,
 ) -> OrcidSuggestionsResponse:
     """Propose (never record — BR-OB3) interests from the user's ORCID works via the #347
     public-record helper. MUST never 5xx: every failure degrades to empty + ``degraded=True``

@@ -118,6 +118,15 @@ def test_interest_selection_rejects_non_whitelist_and_empty() -> None:
         InterestSelection(categories=[], keywords=[])  # empty selection
 
 
+def test_interest_selection_rejects_oversized_raw_arrays() -> None:
+    # Field(max_length) fires before the dedupe validator — a flood is rejected up front
+    # instead of paying the O(n) pass (unit review SECURITY-05).
+    with pytest.raises(ValidationError):
+        InterestSelection(categories=["cs.AI"] * 33)
+    with pytest.raises(ValidationError):
+        InterestSelection(categories=["cs.AI"], keywords=["transformers"] * 33)
+
+
 def test_interest_selection_dedupes_repeated_picks() -> None:
     # A doubled pick must not double its seed weight in the aggregator.
     dto = InterestSelection(
