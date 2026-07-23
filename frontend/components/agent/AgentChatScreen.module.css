@@ -549,6 +549,62 @@
   color: var(--color-text-muted);
 }
 
+/* U11 확장(FR-49) — 성공 턴 하단 접이식 웹 레퍼런스 섹션 */
+.webReferences {
+  border-top: 1px dashed var(--color-border);
+  padding-top: 6px;
+}
+
+.webReferences summary {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.webReferences summary small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.webReferenceList {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webReference {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.webReference a {
+  color: var(--color-accent);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.webReferenceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.webReferenceSourceBadge {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .abstainNotice {
   margin: 0;
   padding: 8px 10px;

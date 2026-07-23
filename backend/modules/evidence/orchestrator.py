@@ -9,7 +9,9 @@ from docsuri_shared._generated.dtos.evidence_schema import (
     EvidenceRequest,
     EvidenceResult,
     EvidenceScope,
+    WebReferenceRef,
 )
+from docsuri_shared.external_query import sanitize_external_query
 
 from .assembler import EvidenceComparisonAssembler
 from .extractor import EvidenceExtractor, LlmUnavailable
@@ -22,6 +24,7 @@ from .models import (
 )
 from .streaming import ProgressFn
 from .tools import EvidenceDocModelTool, EvidencePaperSearchTool, PaperSearchUnavailable
+from .web_search import NoopScholarlyWebSearchClient, ScholarlyWebSearchPort
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class EvidenceAgentOrchestrator:
         extractor: EvidenceExtractor,
         assembler: EvidenceComparisonAssembler,
         cost_guard: object | None = None,
+        web_search: ScholarlyWebSearchPort | None = None,
     ) -> None:
         self._search = search_tool
         self._doc_model = doc_model_tool
@@ -49,6 +53,8 @@ class EvidenceAgentOrchestrator:
         self._assembler = assembler
         # NFR-C1: U6 단일 권위(cost guard) — None이면 외부 budget_signal만으로 게이트.
         self._cost_guard = cost_guard
+        # FR-49 웹레퍼런스 — 기본 배선은 Noop(테스트·비활성). 실 배선은 real_wiring.
+        self._web_search = web_search or NoopScholarlyWebSearchClient()
 
     def _cost_gated(self) -> bool:
         if self._cost_guard is None:
@@ -199,10 +205,40 @@ class EvidenceAgentOrchestrator:
             search_result=search_result,
             paper_count=len(doc_models),
         )
+
+        # --- 6. 웹 레퍼런스 동봉(FR-49) — 반드시 추출·조립이 끝난 뒤(BR-WR2 구조적 보증).
+        # 웹 결과는 프롬프트·추출 입력에 절대 합류하지 않는 post-hoc 장식이다. 실패·
+        # 타임아웃·0건은 조용한 생략 — 턴 결과 불변(BR-WR5). abstain 턴은 v1 미동봉(§3).
+        result = self._with_web_references(result, request.topic)
         return TurnSuccessResult(
             outcome=result,
             resolved_paper_ids=_referenced_paper_ids(items),
         )
+
+    def _with_web_references(self, result: EvidenceResult, topic: str) -> EvidenceResult:
+        try:
+            # BR-WR3 — 그 턴의 corpus topic만, sanitize(≤180자) 통과 후 전송.
+            refs = self._web_search.search(sanitize_external_query(topic))
+            if not refs:
+                return result
+            return result.model_copy(
+                update={
+                    'webReferences': [
+                        WebReferenceRef(
+                            title=ref.title,
+                            url=ref.url,
+                            doi=ref.doi,
+                            authors=list(ref.authors) or None,
+                            year=ref.year,
+                            source=ref.source,
+                        )
+                        for ref in refs
+                    ]
+                }
+            )
+        except Exception:  # noqa: BLE001 — BR-WR5 Noop 저하: 어떤 실패도 턴을 깨지 않는다
+            logger.warning('web reference search failed — omitting webReferences (BR-WR5)')
+            return result
 
     def _run_literal(
         self,

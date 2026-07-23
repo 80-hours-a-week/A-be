@@ -22,6 +22,11 @@ from .extractor import EvidenceExtractor
 from .orchestrator import EvidenceAgentOrchestrator
 from .settings import EvidenceSettings
 from .tools import EvidenceDocModelTool, EvidencePaperSearchTool
+from .web_search import (
+    NoopScholarlyWebSearchClient,
+    ScholarlyApiSearchClient,
+    ScholarlyWebSearchPort,
+)
 
 
 @dataclass(frozen=True)
@@ -99,6 +104,28 @@ def build_evidence_orchestrator(
         extractor=extractor,
         assembler=assembler,
         cost_guard=cost_guard,
+        web_search=build_scholarly_web_search(settings),
     )
 
     return EvidenceBundle(orchestrator=orchestrator, settings=settings)
+
+
+def build_scholarly_web_search(settings: EvidenceSettings) -> ScholarlyWebSearchPort:
+    """FR-49 웹레퍼런스 배선 — DOCSURI_WEB_REFS_ENABLED=false면 Noop(기본 배선·저하 경로).
+
+    전체 시간 예산(DOCSURI_WEB_REFS_TIMEOUT_S, 기본 4s)은 httpx client timeout으로
+    bound한다(NFR-P6). U12 novelty의 scholarly 합류도 이 팩토리를 재사용한다(US-WR2).
+    """
+    if not settings.web_refs_enabled:
+        return NoopScholarlyWebSearchClient()
+
+    import httpx
+
+    return ScholarlyApiSearchClient(
+        httpx.Client(
+            timeout=settings.web_refs_timeout_s,
+            headers={'User-Agent': 'DocSuri-Evidence/1.0'},
+        ),
+        max_refs=settings.web_refs_max,
+        mailto=settings.openalex_mailto,
+    )

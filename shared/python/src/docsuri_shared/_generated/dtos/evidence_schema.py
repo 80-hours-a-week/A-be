@@ -65,6 +65,34 @@ class EvidenceItem(BaseModel):
     )
 
 
+class WebReferenceRef(BaseModel):
+    """
+    표시 전용 웹 레퍼런스(U11 웹레퍼런스 확장 §4, FR-49). SourceRef가 아니며 claims의 supporting/conflicting과 무관 — 링크백 전용 프로바이더 메타만(C-11: 본문·초록 저장 금지, web: 네임스페이스 신설 없음). 프로바이더 반환 URL/DOI 원본만(BR-WR4 무날조 — 조립·생성 금지). Trace: FR-49, C-11, US-WR1, BR-WR1, BR-WR4.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    title: str = Field(
+        ..., description='프로바이더가 반환한 논문 제목(표시용). Trace: FR-49.'
+    )
+    url: str = Field(
+        ...,
+        description='프로바이더 반환 원본 URL — https·허용 호스트 검증 통과분만, 조립 금지(BR-WR4). Trace: BR-WR4.',
+    )
+    doi: str | None = Field(
+        None, description='프로바이더 반환 DOI(선택, dedupe 키·표시용). Trace: BR-WR4.'
+    )
+    authors: list[str] | None = Field(
+        None, description='표시용 상위 저자 몇 명(선택). Trace: FR-49.'
+    )
+    year: int | None = Field(None, description='출판 연도(선택, 표시용). Trace: FR-49.')
+    source: str = Field(
+        ...,
+        description='출처 프로바이더 식별자: semantic_scholar | openalex. Trace: FR-49.',
+    )
+
+
 class EvidenceCoverage(BaseModel):
     """
     근거형성에 사용된 논문·쿼리 요약 메타(투명성). 내부 점수·타이밍 미노출(SEC-9).
@@ -99,6 +127,10 @@ class EvidenceResult(BaseModel):
     answer: str | None = Field(
         None,
         description="claims를 대화체 한국어 문단으로 풀어 쓴 요약. 오직 claims[].statement/supporting/conflicting에서만 조립되며 새 사실을 도입하지 않는다(C-2 동일 적용 — 생성 산문 금지 원칙은 '새 사실 금지'이지 '요약 표현 금지'가 아니다). 하위호환을 위해 선택 필드.",
+    )
+    webReferences: list[WebReferenceRef] | None = Field(
+        None,
+        description='표시 전용 웹 레퍼런스 목록(선택 — U11 웹레퍼런스 확장 §4). LLM 추출 완료 후 post-hoc으로만 동봉되며 프롬프트·추출 입력에 절대 불포함(BR-WR2). 실패·타임아웃·0건이면 생략 — 턴 결과 불변(BR-WR5). 하위호환: optional — 기존 저장 결과·구 클라이언트 무영향. Trace: FR-49, C-11, US-WR1, BR-WR2, BR-WR5.',
     )
 
 

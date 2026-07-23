@@ -6,6 +6,27 @@ import type {
   AgentSessionSummary,
   AgentTimelineEvent,
 } from '@/lib/agentChat/types';
+import type { WebReference } from '@/lib/agentChat/evidenceResult';
+
+// U11 웹 레퍼런스(FR-49) — 데모 evidence 결과에 동봉되는 표시 메타. 테스트가 링크 href를
+// 이 값과 그대로 비교하므로 export한다. S2 항목은 doi 포함, OpenAlex 항목은 doi 없음.
+export const evidenceWebReferencesFixture: WebReference[] = [
+  {
+    title: 'Benchmark Data Contamination of Large Language Models: A Survey',
+    url: 'https://www.semanticscholar.org/paper/2406.04244',
+    doi: '10.48550/arXiv.2406.04244',
+    authors: ['Cheng Xu', 'Shuhao Guan', 'Derek Greene', 'M-Tahar Kechadi'],
+    year: 2024,
+    source: 'semantic_scholar',
+  },
+  {
+    title: 'Data Contamination Through the Lens of Time',
+    url: 'https://openalex.org/W4388614611',
+    authors: ['Manley Roberts', 'Himanshu Thakur'],
+    year: 2023,
+    source: 'openalex',
+  },
+];
 
 const baseSessions: AgentSessionSnapshot[] = [
   {
@@ -53,6 +74,8 @@ const baseSessions: AgentSessionSnapshot[] = [
             },
           ],
           coverage: { paperCount: 3, queryUsed: 'LLM 평가 데이터 누수' },
+          // U11 웹 레퍼런스(FR-49) — 성공 턴 하단 접이식 섹션 렌더링을 검증한다.
+          webReferences: evidenceWebReferencesFixture,
         }),
         createdAt: '2026-07-01T00:10:30Z',
         status: 'sent',

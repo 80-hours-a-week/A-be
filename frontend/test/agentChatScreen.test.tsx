@@ -7,6 +7,7 @@ import {
   parseNoveltySseEvents,
 } from '@/components/agent/AgentChatScreen';
 import { resetMockNotionConnection } from '@/lib/api/mockTransport';
+import { evidenceWebReferencesFixture } from '@/mocks/agentFixtures';
 
 describe('AgentChatScreen', () => {
   beforeEach(() => {
@@ -122,6 +123,13 @@ describe('AgentChatScreen', () => {
     expect(screen.getByText(/benchmark reuse inflates scores/)).toBeInTheDocument();
     expect(screen.getByText(/참고 논문 3편/)).toBeInTheDocument();
     expect(screen.queryByText(/"claims"/)).not.toBeInTheDocument();
+
+    // U11 웹 레퍼런스(FR-49) — 성공 턴 하단 접이식 섹션이 fixture URL 원본으로 링크된다.
+    expect(screen.getByTestId('evidence-web-references')).toBeInTheDocument();
+    const webRefLink = screen.getByRole('link', { name: evidenceWebReferencesFixture[0].title });
+    expect(webRefLink).toHaveAttribute('href', evidenceWebReferencesFixture[0].url);
+    expect(webRefLink).toHaveAttribute('target', '_blank');
+    expect(webRefLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('shows rejected attachments and blocks send until they are removed', async () => {

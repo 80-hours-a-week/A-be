@@ -303,10 +303,14 @@ class ExternalApiSearchClient:
         *,
         github_token: str | None = None,
         per_source: int = 3,
+        scholarly: Any | None = None,
     ) -> None:
         self._client = client
         self._github_token = github_token
         self._per_source = per_source
+        # US-WR2 — U11 ScholarlyWebSearchPort 주입(동일 ScholarlyApiSearchClient 재사용).
+        # None이면 scholarly 소스 없이 기존 3개 소스만(기존 소비자·테스트 무영향).
+        self._scholarly = scholarly
 
     def search(self, query: str) -> RetrievalBundle:
         cleaned = sanitize_external_query(query)
@@ -316,6 +320,7 @@ class ExternalApiSearchClient:
             ("github", self._github_repos),
             ("huggingface", self._huggingface_datasets),
             ("zenodo", self._zenodo_records),
+            ("scholarly", self._scholarly_papers),
         ):
             try:
                 items.extend(search(cleaned))
@@ -414,6 +419,27 @@ class ExternalApiSearchClient:
             for record in records[: self._per_source]
         ]
 
+    def _scholarly_papers(self, query: str) -> list[dict[str, Any]]:
+        """US-WR2 — U11 scholarly 검색을 기존 RetrievalBundle 항목 형상으로 매핑.
+        실패 격리는 search()의 소스별 try/except가 기존 계약대로 보장한다(BR-WR6)."""
+        if self._scholarly is None:
+            return []
+        source_names = {"semantic_scholar": "Semantic Scholar", "openalex": "OpenAlex"}
+        return [
+            _external_item(
+                source_type="paper",
+                source_name=source_names.get(ref.source, ref.source),
+                title=ref.title,
+                url=ref.url,
+                summary=_scholarly_summary(ref),
+                identifier=ref.doi or ref.url,
+                doi=ref.doi,
+                year=ref.year,
+                authors=list(ref.authors),
+            )
+            for ref in self._scholarly.search(query)
+        ]
+
     def _json(
         self,
         url: str,
@@ -428,6 +454,14 @@ class ExternalApiSearchClient:
         if raise_for_status is not None:
             raise_for_status()
         return response.json()
+
+
+def _scholarly_summary(ref: Any) -> str:
+    """표시 메타만으로 짧은 요약 라인(저자·연도) — 본문/초록 없음(C-11)."""
+    parts = [", ".join(ref.authors)] if ref.authors else []
+    if ref.year:
+        parts.append(str(ref.year))
+    return " · ".join(parts)
 
 
 def _external_item(
@@ -1595,7 +1629,19 @@ def build_external_adapter() -> ExternalSearchPort:
             headers={"User-Agent": "DocSuri-Novelty/1.0"},
         ),
         github_token=os.getenv("DOCSURI_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN"),
+        scholarly=_build_scholarly_client(),
     )
+
+
+def _build_scholarly_client() -> Any | None:
+    """US-WR2 — U11의 동일 ScholarlyApiSearchClient를 합류시킨다(배선 팩토리 재사용).
+    evidence 모듈 미설치·비활성이면 None — scholarly 없이 기존 3개 소스만(BR-WR6)."""
+    try:
+        from backend.modules.evidence.real_wiring import build_scholarly_web_search
+        from backend.modules.evidence.settings import EvidenceSettings
+    except ModuleNotFoundError:
+        return None
+    return build_scholarly_web_search(EvidenceSettings.from_env())
 
 
 def build_llm_adapter(cost_guard: Any = None) -> NoveltyLlmPort:
