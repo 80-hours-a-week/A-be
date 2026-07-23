@@ -21,6 +21,9 @@ TOP_N = 20  # FR-3 (Q10=A)
 # BR-P8: personalization may only nudge the top slice, never reshuffle the tail.
 _BR_P8_BOOST_CEILING = 0.1
 _BOOST_TOP_FRACTION = 0.30
+# US-P5: boost keys shorter than this never title-match — guards against a degenerate 1–2 char
+# keyword ("ai", "ml") boosting nearly every title via substring match.
+_KEYWORD_MIN_CHARS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +44,22 @@ def _record_boost(record, boosts: dict[str, float]) -> float:
         key = str(getattr(cat, "root", cat))  # ArxivCategory is RootModel[str]
         if key in boosts:
             return max(-_BR_P8_BOOST_CEILING, min(_BR_P8_BOOST_CEILING, boosts[key]))
+    # US-P5: keyword weights ride the SAME boost map (U9 merges keywordWeights in). A key that
+    # matched no category nudges records whose TITLE mentions it (case-insensitive substring) —
+    # same ceiling, same top band, no new ranking machinery. Records without a title
+    # (stubs/legacy) skip cleanly. Strongest |boost| wins so the pick is dict-order independent.
+    # Category keys (e.g. "cs.LG") are technically eligible here too — accepted: arXiv titles
+    # don't contain literal category codes, and splitting the map isn't worth the plumbing.
+    title = str(getattr(record, "title", "") or "").lower()
+    if title:
+        matches = [
+            value
+            for key, value in boosts.items()
+            if len(key) >= _KEYWORD_MIN_CHARS and key.lower() in title
+        ]
+        if matches:
+            strongest = max(matches, key=lambda value: (abs(value), value))
+            return max(-_BR_P8_BOOST_CEILING, min(_BR_P8_BOOST_CEILING, strongest))
     return 0.0
 
 
@@ -49,9 +68,10 @@ def apply_boosts(
     boosts: dict[str, float],
     top_fraction: float = _BOOST_TOP_FRACTION,
 ) -> tuple[RankedResults, ShadowDiff]:
-    """Bounded category re-rank over the top ``top_fraction`` of results (BR-P8): multiplicative
-    and relative to each candidate's own ``ranking_score``, so a boost NUDGES rank within the top
-    band without flipping the overall order or touching the tail. Returns the reordered results
+    """Bounded category/keyword re-rank over the top ``top_fraction`` of results (BR-P8):
+    multiplicative and relative to each candidate's own ``ranking_score``, so a boost NUDGES
+    rank within the top band without flipping the overall order or touching the tail (keyword
+    keys title-match via ``_record_boost`` — US-P5). Returns the reordered results
     plus a diff against the baseline order. Pure: no I/O, no mutation of the input.
     """
     items = list(ranked.ranked)

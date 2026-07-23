@@ -152,6 +152,7 @@ def _apply_startup_migrations(database_url: str) -> None:
             "backend/modules/accounts/migrations",
             "backend/modules/library/migrations",
             "backend/modules/personalization/migrations",
+            "backend/modules/onboarding/migrations",
             "backend/modules/mypage/migrations",
             "backend/modules/research/migrations",
             "backend/modules/novelty/migrations",

@@ -61,11 +61,13 @@ def test_fewer_than_n_returns_all() -> None:
     assert len(ranked.ranked) == 2
 
 
-def _shadow_c(paper_id: str, score: float, categories: list[str]) -> Candidate:
-    # shadow_rerank_diff only reads record.categories / record.paperId — stub avoids the 1024-dim
-    # vector an IndexRecord requires.
+def _shadow_c(
+    paper_id: str, score: float, categories: list[str], title: str | None = None
+) -> Candidate:
+    # shadow_rerank_diff only reads record.categories / record.paperId (+ record.title for the
+    # US-P5 keyword match) — stub avoids the 1024-dim vector an IndexRecord requires.
     return Candidate(
-        record=SimpleNamespace(paperId=paper_id, categories=list(categories)),
+        record=SimpleNamespace(paperId=paper_id, categories=list(categories), title=title),
         retrieval_score=score,
     )
 
@@ -109,6 +111,32 @@ def test_apply_boosts_reorders_head_and_matches_diff() -> None:
     assert [c.record.paperId for c in boosted.ranked] == ["B", "A", "C", "D"]
     assert diff == shadow_rerank_diff(ranked, {"cs.AI": 0.1}, top_fraction=1.0)
     assert ranked.ranked[0].record.paperId == "A"  # input is not mutated
+
+
+def test_apply_boosts_matches_keyword_in_title() -> None:
+    # US-P5: a keyword boost key (no category match) nudges records whose TITLE mentions it,
+    # case-insensitively — B*1.1=.319 > A. Same band/ceiling as the category boost.
+    ranked = RankedResults(
+        ranked=(
+            _shadow_c("A", 0.30, ["cs.LG"], title="Graph Sampling at Scale"),
+            _shadow_c("B", 0.29, ["cs.LG"], title="Transformer Memory Compression"),
+        )
+    )
+    boosted, diff = apply_boosts(ranked, {"transformer": 0.1}, top_fraction=1.0)
+    assert [c.record.paperId for c in boosted.ranked] == ["B", "A"]
+    assert diff.boosted_count == 1
+
+
+def test_apply_boosts_ignores_degenerate_short_keywords() -> None:
+    # Keys under 3 chars never title-match ("me" ⊂ "Memory") — guards against 1–2 char
+    # keywords boosting nearly every title. Title-less records (legacy stubs) also no-op.
+    ranked = RankedResults(
+        ranked=(
+            _shadow_c("A", 0.30, ["cs.LG"], title="Transformer Memory Compression"),
+            _shadow_c("B", 0.29, ["cs.LG"]),  # no title at all
+        )
+    )
+    assert apply_boosts(ranked, {"me": 0.1}, top_fraction=1.0)[1] == ShadowDiff(0, 0, 0)
 
 
 def test_apply_boosts_noop_returns_input_order() -> None:

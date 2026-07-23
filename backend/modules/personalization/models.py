@@ -29,12 +29,17 @@ class BehaviorEventType(StrEnum):
     SOURCE_ANCHOR_CLICKED = "source_anchor_clicked"
     GLOSSARY_UPDATED = "glossary_updated"
     READ_COMPLETED = "read_completed"
+    # U14 onboarding (FR-39 개정): the user explicitly set their interests — a meaningful
+    # action, not passive telemetry. Rides the same owner-scoped/90-day/dedupe contract.
+    INTEREST_SET = "interest_set"
 
 
 class BehaviorSubject(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["paper", "search", "summary", "translation", "source_anchor", "glossary"]
+    kind: Literal[
+        "paper", "search", "summary", "translation", "source_anchor", "glossary", "interest"
+    ]
     paperId: str | None = Field(default=None, max_length=128)
     queryHash: str | None = Field(default=None, max_length=128)
     category: str | None = Field(default=None, max_length=64)
@@ -119,6 +124,7 @@ _ALLOWED_METADATA: dict[BehaviorEventType, set[str]] = {
     BehaviorEventType.SOURCE_ANCHOR_CLICKED: {"anchorId", "sectionKind"},
     BehaviorEventType.GLOSSARY_UPDATED: {"glossaryVersion", "termCountDelta"},
     BehaviorEventType.READ_COMPLETED: {"entrySurface"},
+    BehaviorEventType.INTEREST_SET: {"source", "categories", "keywords"},
 }
 _FORBIDDEN_KEY_PARTS = (
     "password",

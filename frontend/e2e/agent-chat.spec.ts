@@ -9,6 +9,9 @@ test('authenticated user opens agent tab and sends a novelty message', async ({ 
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       }),
     );
+    // This spec models an existing user who already completed onboarding — keep the
+    // U14 interest picker (mock default: pending) from overlaying the agent screen.
+    window.localStorage.setItem('docsuri-mock-onboarding-state', 'completed');
   });
   await page.goto('/agent');
 

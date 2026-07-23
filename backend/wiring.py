@@ -532,7 +532,10 @@ def _mount_personalization(app: FastAPI, settings: Settings, result: MountResult
     # orchestrator never holds a request-scoped DB session. Errors bubble to discovery's
     # fail-open wrapper (BR-P13).
     if os.getenv("PERSONALIZATION_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
-        from backend.modules.personalization.service import PersonalizationReadPort
+        from backend.modules.personalization.service import (
+            BehaviorEventRecorder,
+            PersonalizationReadPort,
+        )
 
         observability = getattr(app.state, "observability", None)
 
@@ -554,13 +557,93 @@ def _mount_personalization(app: FastAPI, settings: Settings, result: MountResult
                     return port.cached_search_boosts(user_id)
                 finally:
                     session.close()
+
+            def _record_event(user_id: str, dto):
+                # U14 seed seam: same U9 write path as /api/personalization/events —
+                # session-per-call so the caller never holds request-scoped DB state.
+                session = session_factory()
+                try:
+                    recorder = BehaviorEventRecorder(
+                        SqlPersonalizationRepository(session), observability
+                    )
+                    result = recorder.record(user_id, dto)
+                    session.commit()
+                    return result
+                except Exception:
+                    session.rollback()
+                    raise
+                finally:
+                    session.close()
         else:
 
             def _search_boosts(user_id: str) -> dict[str, float]:
                 port = PersonalizationReadPort(repo, observability=observability)
                 return port.cached_search_boosts(user_id)
 
+            def _record_event(user_id: str, dto):
+                return BehaviorEventRecorder(repo, observability).record(user_id, dto)
+
         app.state.personalization_search_boosts = _search_boosts
+        # U14 onboarding resolves this from app.state at request time (degrades when absent),
+        # so profile seeding stays event-path-only (BR-OB2/C-7) and behind the same flag.
+        app.state.personalization_record_event = _record_event
+
+
+def _mount_onboarding(app: FastAPI, settings: Settings, result: MountResult) -> None:
+    # onboarding (U14) is `backend.modules.onboarding`. Absent → ModuleNotFoundError → skip.
+    # Interest seeding rides the U9 event seam (app.state.personalization_record_event, set by
+    # _mount_personalization when PERSONALIZATION_ENABLED) — resolved at request time, so mount
+    # order is irrelevant and a missing/disabled U9 degrades the submit to state-only (NFR-P4).
+    from backend.modules.onboarding import controller as onboarding
+    from backend.modules.onboarding.repository import (
+        InMemoryOnboardingRepository,
+        SqlOnboardingRepository,
+    )
+
+    if _is_postgres(settings.database_url):
+        from backend.modules.mypage.repository.sql import SqlAccountRepository
+
+        from .db import make_engine, make_session_factory
+
+        engine = getattr(app.state, "db_engine", None) or make_engine(settings.database_url)
+        app.state.db_engine = engine
+        session_factory = make_session_factory(engine)
+
+        def get_onboarding_repo():
+            session = session_factory()
+            try:
+                yield SqlOnboardingRepository(session)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            finally:
+                session.close()
+
+        # ORCID-linked identity lookup for /orcid-suggestions (BR-OB3): reuse the U3-backed
+        # mypage adapter (#347 login integration) — read-only, session-per-request.
+        def get_onboarding_account_repo():
+            session = session_factory()
+            try:
+                yield SqlAccountRepository(session)
+            finally:
+                session.close()
+
+        app.dependency_overrides[onboarding.get_account_repo] = get_onboarding_account_repo
+        log.info("app-shell: onboarding read path = sql(postgres)")
+    else:
+        repo = InMemoryOnboardingRepository()
+
+        def get_onboarding_repo():
+            return repo
+
+        # get_account_repo keeps its None default → orcid-suggestions degrades (picker-only).
+        log.info("app-shell: onboarding read path = in-memory")
+
+    app.dependency_overrides[onboarding.get_repo] = get_onboarding_repo
+    for router in onboarding.routers:
+        app.include_router(router)
+    result.mounted.append("onboarding")
 
 
 def _mount_novelty(app: FastAPI, settings: Settings, result: MountResult) -> None:
@@ -767,6 +850,7 @@ _INTEGRATIONS = (
     _mount_ops,
     _mount_citation_graph,
     _mount_personalization,
+    _mount_onboarding,  # after personalization: rides its app.state event-recorder seam
     _mount_research,
     _mount_novelty,
     _mount_summarization,
