@@ -1,0 +1,177 @@
+/* Onboarding interest picker — centered modal card (mirrors SummaryModal), phone-first:
+   full width minus padding on phones, capped from tablet up. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.5);
+  padding: 1rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-height: 88vh;
+  padding: 1.25rem 1.25rem 1rem;
+  background: var(--color-surface, #fff);
+  border-radius: 1rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  outline: none;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.helper {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.section {
+  margin: 0;
+}
+
+.sectionTitle {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.sectionHelper {
+  margin: 0.125rem 0 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Tappable chips — generous touch targets (phone-first), designed selected state:
+   soft accent fill + accent border instead of a bare default button. */
+.chip,
+.chipActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.chip:hover {
+  border-color: var(--color-accent);
+}
+
+.chipActive {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-soft-bg);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.chip:focus-visible,
+.chipActive:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.chipId {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.chipRemove {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.skip {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--color-text);
+}
+
+.submit {
+  flex: 1;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: 0.625rem;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cap the centered card's width from tablet up. */
+@media (min-width: 480px) {
+  .panel {
+    max-width: 26rem;
+  }
+}

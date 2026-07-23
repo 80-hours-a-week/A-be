@@ -60,6 +60,13 @@ import type {
   ResetPersonalizationProfileResult,
 } from '@/types/personalization';
 import type {
+  InterestSelectionCreate,
+  InterestsResult,
+  OnboardingStatusResponse,
+  OrcidSuggestionsResponse,
+  SkipResult,
+} from '@/types/onboarding';
+import type {
   AgentMode,
   AgentAttachment,
   AgentAttachmentKind,
@@ -584,6 +591,50 @@ export class ApiClient {
       idempotent: false,
     });
     if (res.status === 200) return res.body as ResetPersonalizationProfileResult;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  // ---- onboarding (U14, US-OB1/OB2) -------------------------------------
+
+  /** Picker gate (BR-OB4): the FE prompts ONLY on `pending`. The allowed category
+   * whitelist rides along in the response, so the picker needs no extra endpoint. */
+  async getOnboardingStatus(): Promise<OnboardingStatusResponse> {
+    const res = await this.request({ method: 'GET', path: '/onboarding/status', idempotent: true });
+    if (res.status === 200) return res.body as OnboardingStatusResponse;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** Confirm the selection → `interest_set` seed event + state=completed. Empty or
+   * non-whitelist categories → 422 (surfaced as a retryable UserFacingError). */
+  async submitOnboardingInterests(req: InterestSelectionCreate): Promise<InterestsResult> {
+    const res = await this.request({
+      method: 'POST',
+      path: '/onboarding/interests',
+      body: req,
+      idempotent: false,
+    });
+    if (res.status === 200) return res.body as InterestsResult;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** state=skipped — no event, no profile touch (BR-OB4: never re-prompted). Idempotent
+   * on the backend, but a state-changing POST → no auto-retry. */
+  async skipOnboarding(): Promise<SkipResult> {
+    const res = await this.request({ method: 'POST', path: '/onboarding/skip', idempotent: false });
+    if (res.status === 200) return res.body as SkipResult;
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  /** ORCID-derived proposals (BR-OB3 — this GET records nothing; approval happens via
+   * submitOnboardingInterests). Callers treat any failure or `degraded` as "no
+   * suggestions" and fall back to the plain picker (US-OB4). */
+  async getOrcidOnboardingSuggestions(): Promise<OrcidSuggestionsResponse> {
+    const res = await this.request({
+      method: 'GET',
+      path: '/onboarding/orcid-suggestions',
+      idempotent: true,
+    });
+    if (res.status === 200) return res.body as OrcidSuggestionsResponse;
     throw normalizeHttpError(res.status, serverMessage(res.body));
   }
 

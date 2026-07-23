@@ -5,6 +5,7 @@ import { SessionProvider } from '@/components/session/SessionContext';
 import { ThemeProvider } from '@/components/theme/ThemeContext';
 import { SavedLibraryProvider } from '@/lib/library/savedLibrary';
 import { PhoneMockupFrame } from '@/components/PhoneMockupFrame';
+import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
 import { ViewModePreview } from '@/components/ViewModePreview';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
@@ -40,7 +41,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <SessionProvider>
             <SavedLibraryProvider>
               <ViewModePreview />
-              <PhoneMockupFrame>{children}</PhoneMockupFrame>
+              <PhoneMockupFrame>
+                {/* U14: post-login/signup interest picker — prompts only on server-owned
+                    `pending`; renders nothing otherwise (US-OB1/OB2, BR-OB4). */}
+                <OnboardingGate />
+                {children}
+              </PhoneMockupFrame>
             </SavedLibraryProvider>
           </SessionProvider>
         </ThemeProvider>

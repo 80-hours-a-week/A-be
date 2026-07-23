@@ -18,6 +18,12 @@ test('anonymous → signup → login → search → results', async ({ page }) =
   await page.getByTestId('login-password').fill('demo-password-123');
   await page.getByTestId('login-submit').click();
 
+  // First login → onboarding interest picker (U14, US-OB1). Skipping must not block
+  // the session (BR-OB1) and never re-prompts within it.
+  await expect(page.getByTestId('interest-picker')).toBeVisible();
+  await page.getByTestId('interest-picker-skip').click();
+  await expect(page.getByTestId('interest-picker')).toBeHidden();
+
   // Lands on search; run a query and see ranked cards.
   await page.getByTestId('search-input').fill('transformer attention');
   await page.getByTestId('search-submit').click();

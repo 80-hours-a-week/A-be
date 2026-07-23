@@ -58,6 +58,12 @@ import {
   mockResetAgentSessions,
   mockSendAgentMessage,
 } from '@/mocks/agentFixtures';
+import {
+  mockOnboardingStatus,
+  mockOrcidSuggestions,
+  mockSkipOnboarding,
+  mockSubmitInterests,
+} from '@/mocks/onboardingFixtures';
 import type { SavedSearchCreateDTO, LibraryItemCreateDTO } from '@/types/generated';
 import type { CitationNode } from '@/types/citationGraph';
 import type { BehaviorEventCreate } from '@/types/personalization';
@@ -98,6 +104,9 @@ export class MockTransport implements Transport {
 
     const mypageRes = this.routeMypage(req, path);
     if (mypageRes) return mypageRes;
+
+    const onboardingRes = this.routeOnboarding(req, path);
+    if (onboardingRes) return onboardingRes;
 
     const agentRes = this.routeAgent(req, path);
     if (agentRes) return agentRes;
@@ -355,6 +364,24 @@ export class MockTransport implements Transport {
         const body = (req.body ?? {}) as { nightlyPushAgreed?: unknown };
         return { status: 200, body: mockUpdateConsent(Boolean(body.nightlyPushAgreed)) };
       }
+    }
+    return null;
+  }
+
+  // U14 onboarding routes — status is localStorage-backed (server-owned in real mode) so
+  // complete/skip never re-prompts in mock mode (BR-OB4).
+  private routeOnboarding(req: TransportRequest, path: string): TransportResponse | null {
+    if (path === '/onboarding/status' && req.method === 'GET') {
+      return { status: 200, body: mockOnboardingStatus() };
+    }
+    if (path === '/onboarding/interests' && req.method === 'POST') {
+      return mockSubmitInterests(req.body);
+    }
+    if (path === '/onboarding/skip' && req.method === 'POST') {
+      return { status: 200, body: mockSkipOnboarding() };
+    }
+    if (path === '/onboarding/orcid-suggestions' && req.method === 'GET') {
+      return { status: 200, body: mockOrcidSuggestions() };
     }
     return null;
   }
