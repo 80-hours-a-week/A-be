@@ -128,7 +128,13 @@ Ordered by user impact:
 > `aidlc-docs/inception/requirements/onboarding.md` — all 7 open questions owner-resolved
 > 2026-07-23: FR-44~46 + C-7~8 registered in `requirements.md`, FR-39 amended (interest-set as a
 > meaningful behavior event), new unit **U14**, US-P5 pulled forward into the track. Seeding rides
-> the event path only (QT-7-safe). Next: U14 stories → design. The ordering rationale in §6 still holds.
+> the event path only (QT-7-safe). **Item 1 ✅ SHIPPED same day**: U14 stories(US-OB1~4) → unit
+> registration → design → backend+FE implementation → unit review APPROVE(+fixes) — merged to
+> `develop` via fork PR #4 (`6ca4402`). **Item 2 트렌드/알림 — inception started 2026-07-23**:
+> requirements draft at `aidlc-docs/inception/requirements/trends-notifications.md` (FR-47·C-9~10
+> proposed; 8 open questions — incl. followed-topics definition vs U14 interests, and the
+> local-serving-era re-decision of #348 SES vs Resend — approval gate before CONSTRUCTION).
+> The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
 
