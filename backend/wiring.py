@@ -721,6 +721,57 @@ def _mount_trends(app: FastAPI, settings: Settings, result: MountResult) -> None
     result.mounted.append("trends")
 
 
+def _mount_plans(app: FastAPI, settings: Settings, result: MountResult) -> None:
+    # plans (U16) is `backend.modules.plans`. Mounts the API surface (/plans/me + admin
+    # grants) AND wires the SAME repo source into the module-level provider that the
+    # agent-quota middleware and the worker spend rollup consume (plans/provider.py) — so an
+    # admin grant is enforceable on the very next agent request (US-SB2 즉시 반영).
+    from contextlib import contextmanager
+
+    from backend.modules.plans import controller as plans
+    from backend.modules.plans import provider as plans_provider
+    from backend.modules.plans.repository import InMemoryPlanRepository, SqlPlanRepository
+
+    if _is_postgres(settings.database_url):
+        from .db import make_engine, make_session_factory
+
+        engine = getattr(app.state, "db_engine", None) or make_engine(settings.database_url)
+        app.state.db_engine = engine
+        session_factory = make_session_factory(engine)
+
+        @contextmanager
+        def plans_repo_scope():
+            session = session_factory()
+            try:
+                yield SqlPlanRepository(session)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            finally:
+                session.close()
+
+        log.info("app-shell: plans read path = sql(postgres)")
+    else:
+        repo = InMemoryPlanRepository()
+
+        @contextmanager
+        def plans_repo_scope():
+            yield repo
+
+        log.info("app-shell: plans read path = in-memory")
+
+    def get_plans_repo():
+        with plans_repo_scope() as scoped:
+            yield scoped
+
+    plans_provider.set_repo_scope_factory(plans_repo_scope)
+    app.dependency_overrides[plans.get_repo] = get_plans_repo
+    for router in plans.routers:
+        app.include_router(router)
+    result.mounted.append("plans")
+
+
 def _mount_novelty(app: FastAPI, settings: Settings, result: MountResult) -> None:
     from backend.modules.novelty import controller as novelty
     from backend.modules.novelty.adapters import (
@@ -927,6 +978,7 @@ _INTEGRATIONS = (
     _mount_personalization,
     _mount_onboarding,  # after personalization: rides its app.state event-recorder seam
     _mount_trends,      # U15 API surface only — the digest batch is a CLI (OQ-5)
+    _mount_plans,       # U16 — also wires the provider seam for agent_quota (§2)
     _mount_research,
     _mount_novelty,
     _mount_summarization,

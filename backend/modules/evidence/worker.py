@@ -33,6 +33,13 @@ from .models import AgentRunContext, EvidenceTurn, TurnErrorResult, TurnPendingR
 from .orchestrator import EvidenceAgentOrchestrator
 from .repository import EvidenceRepository
 
+# U16 BR-SB7 spend attribution — strictly best-effort: if the plans module is unavailable
+# the null context keeps this worker byte-for-byte equivalent to the pre-U16 behavior.
+try:
+    from backend.modules.plans.rollup import spend_attribution
+except Exception:  # noqa: BLE001 — observation-only wiring must never break the worker
+    from contextlib import nullcontext as spend_attribution  # type: ignore[assignment]
+
 log = logging.getLogger('docsuri.evidence.worker')
 
 
@@ -201,7 +208,11 @@ def process_job(
     )
 
     try:
-        result = orchestrator.run(ctx, request)
+        # U16 BR-SB7: 이 턴의 Bedrock 지출을 소유자에게 귀속(관측 전용 일일 롤업). ops의
+        # UsageEvent에는 사용자 문맥이 없어, owner_id가 스코프에 있는 유일한 지점인 여기서
+        # contextvar로 흘려보낸다 — 롤업 실패는 record 측에서 삼켜져 턴에 영향이 없다.
+        with spend_attribution(owner_id):
+            result = orchestrator.run(ctx, request)
     except Exception as exc:
         log.exception('evidence job %s: orchestrator failed', job_id)
         # 검색/LLM 실패는 orchestrator.run() 내부에서 이미 abstain으로 잡아낸다 — 여기까지

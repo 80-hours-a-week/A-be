@@ -166,6 +166,12 @@ class EvidenceExtractor:
                         source='evidence.extractor',
                     )
                 )
+                # U16 BR-SB7: 같은 record_spend 지점을 사용자별 일일 롤업으로도 1행 적재.
+                # UsageEvent에 사용자 문맥이 없으므로 워커가 세팅한 contextvar 귀속을 탄다
+                # (plans/rollup.py) — record_llm_spend는 계약상 절대 raise하지 않는다.
+                from backend.modules.plans.rollup import record_llm_spend
+
+                record_llm_spend('evidence', amount)
         except Exception:  # noqa: BLE001 — 지출 계측은 best-effort
             logger.warning('failed to record evidence Bedrock spend', exc_info=True)
 
