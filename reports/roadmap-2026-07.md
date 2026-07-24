@@ -65,7 +65,7 @@
 | 프로필 페이지 | ✅ Live | U10 merged; 최근 본 논문 실데이터 PR #407 + ORCID 로그인 PR #414 — **#347 closed 2026-07-08**, ORCID fully wired live (app registered, secret in SM, task-def rev30, FE flag=1) |
 | 인용 그래프 → 각주 트리 | ✅ Live | DOI node expansion 500 fixed — **PR #357** (provider fail-closed) shipped **v1.5.0**, #342 closed |
 | 트렌드/알림 | ✅ Shipped (fork PR #5, 2026-07-23) | U15 follow-topic list + opt-in email digest (watermark job, one-click unsubscribe) merged to `develop` (`39bcebf`); digest efficacy gated on harvest resume (paused) + SES production access — ops follow-ups |
-| 구독제 | 🟡 Inception (2026-07-24) | Requirements draft (`subscription.md`) — plan/tier skeleton over the existing CostGuard/quota substrate; 8 OQs awaiting owner, pivotal: real payments vs plan-tier-only vs defer in the local-serving era |
+| 구독제 | 🟡 Inception — requirements RESOLVED (2026-07-24) | **FR-50~51 + C-12 registered** (`subscription.md`, all 8 OQs owner-decided): plan/tier only (v1 payments carved out — ADMIN manual grants), paid boundary = agent quota raises, free/plus, monthly periods, paid-through-period. New unit **U16**. Gate: plus numbers TBD until CostGuard spend report. Next: report + stories → design |
 | 로그 수집 | ✅ Live | U9 collection healthy (944 events/7d, 0 failures); KPI funnel dashboard + read-complete instrumentation PR #403 merged to develop, #346 closed (main promotion pending) |
 | 개인화 추천 | ✅ Live (v1.15.0) | Shadow (PR #300) → machinery (PR #441/#442) → **flipped LIVE via PR #446** (`SEARCH_RERANK_LIVE`, 2026-07-08) after shadow review; silent no-op healed by PR #454 (profile TTL refresh + category backfill, v1.17.0). #345 closed. US-P5 + keywordWeights deferred |
 | 에이전트: 문헌탐색/근거형성 | ✅ Live (v1.4.0) | PR #338 shipped v1.4.0; **cost-governed since v1.5.0** (PR #364); 근거 카드 + `§` 인용 앵커 (#339, PR #365); 첨부 검증 422 + 500 수정 (PR #373); **첨부 본문 근거 추출 포함** (PR #376) + **세션 재열람·삭제·전체 초기화** (PR #375) — **모두 v1.6.0 배포**; **QT-8 근거화 평가셋 상시화** (#273, PR #383, **v1.7.0**). **PDF 첨부(doc-model 경유) ✅ v1.8.0 MVP + v1.9.0 GROBID(#13)** — Phase 1 완료 |
@@ -154,9 +154,13 @@ Ordered by user impact:
 > **Item 4 구독제 — inception started 2026-07-24**: requirements draft at
 > `aidlc-docs/inception/requirements/subscription.md` — grounded in the existing NFR-C1
 > substrate (CostGuard real spend + per-user daily quotas as the metering base; UserRole has no
-> tier concept yet). **8 open questions awaiting owner** — the pivotal one: real payments vs
-> plan/tier-only vs defer, given the local-serving/personal-fork era differs from the AWS-team
-> era this roadmap item was written in.
+> tier concept yet) — **requirements RESOLVED same day (2026-07-24)**: all 8 OQs owner-decided →
+> **FR-50~51 + C-12 registered** in `requirements.md`, new unit **U16**. Decisions: **plan/tier
+> system only, v1 payments carved out** (no PG — ADMIN manual grants; PG choice deferred to
+> payment introduction) · paid boundary = agent quota raises only · two tiers (free/plus) ·
+> monthly periods · paid-through-period downgrade. **Execution gate: plus quota numbers stay TBD
+> until a CostGuard per-user spend report** (local-era window) is reviewed.
+> Next: spend report (precursor) + U16 stories → design.
 > The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
