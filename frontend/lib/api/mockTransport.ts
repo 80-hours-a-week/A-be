@@ -72,6 +72,7 @@ import {
   mockUnfollowTopic,
   mockUnsubscribe,
 } from '@/mocks/trendsFixtures';
+import { mockGetMyPlan } from '@/mocks/planFixtures';
 import type { SavedSearchCreateDTO, LibraryItemCreateDTO } from '@/types/generated';
 import type { CitationNode } from '@/types/citationGraph';
 import type { BehaviorEventCreate } from '@/types/personalization';
@@ -118,6 +119,9 @@ export class MockTransport implements Transport {
 
     const trendsRes = this.routeTrends(req, path);
     if (trendsRes) return trendsRes;
+
+    const plansRes = this.routePlans(req, path);
+    if (plansRes) return plansRes;
 
     const agentRes = this.routeAgent(req, path);
     if (agentRes) return agentRes;
@@ -416,6 +420,15 @@ export class MockTransport implements Transport {
     }
     if (path === '/trends/unsubscribe' && req.method === 'POST') {
       return mockUnsubscribe(req.body);
+    }
+    return null;
+  }
+
+  // U16 plans route — GET /plans/me is the ONLY plan surface the FE has (C-12: no
+  // payment/grant endpoints client-side; plus grants are ADMIN backend operations).
+  private routePlans(req: TransportRequest, path: string): TransportResponse | null {
+    if (path === '/plans/me' && req.method === 'GET') {
+      return { status: 200, body: mockGetMyPlan() };
     }
     return null;
   }

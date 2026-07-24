@@ -73,6 +73,7 @@ import type {
   FollowListVM,
   UnsubscribeResultVM,
 } from '@/types/trends';
+import type { MyPlanVM } from '@/types/plan';
 import { MAX_FOLLOWED_TOPICS } from '@/types/trends';
 import type {
   AgentMode,
@@ -723,6 +724,18 @@ export class ApiClient {
     });
     if (res.status === 200) return res.body as UnsubscribeResultVM;
     if (res.status === 400) throw new UserFacingError('unknown', '링크가 유효하지 않습니다.');
+    throw normalizeHttpError(res.status, serverMessage(res.body));
+  }
+
+  // ---- plans (U16, US-SB1) ----------------------------------------------
+
+  /** The user's current plan + daily agent quotas (owner-scoped, SEC-8). free carries no
+   * expiresAt; plus carries the derived paid-through expiry (BR-SB2). No payment/upgrade
+   * calls exist client-side (C-12). Callers degrade to the free defaults on any failure
+   * (BR-SB5 mirror) — this read never blocks the page. */
+  async getMyPlan(): Promise<MyPlanVM> {
+    const res = await this.request({ method: 'GET', path: '/plans/me', idempotent: true });
+    if (res.status === 200) return res.body as MyPlanVM;
     throw normalizeHttpError(res.status, serverMessage(res.body));
   }
 

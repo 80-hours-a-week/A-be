@@ -9,6 +9,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { StateView } from '../StateView';
 import { AuthField } from '../AuthField';
 import { TrendsSettingsSection } from './TrendsSettingsSection';
+import { PlanSection } from './PlanSection';
 import styles from './MyPageScreen.module.css';
 import authStyles from '../AuthForm.module.css';
 import type { ConsentSettingsVM } from '@/types/mypage';
@@ -307,6 +308,10 @@ export function MyPageSettingsScreen() {
           />
         </label>
       </section>
+
+      {/* U16 구독제 — 현재 플랜/쿼터 조회 전용(C-12: 결제 UI 없음). 자체 로드 + free 강등
+          (fail-soft, BR-SB5 미러)이라 이 섹션이 실패해도 나머지 설정은 그대로 동작한다. */}
+      <PlanSection />
 
       <section className={styles.card} data-testid="mypage-consents">
         <h2 className={styles.cardTitle}>동의 철회</h2>

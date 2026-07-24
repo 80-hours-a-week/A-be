@@ -22,6 +22,13 @@ from .repository import NoveltyRepository
 from .security import sanitize_external_query
 from .service import NoveltyService, _emit_metric
 
+# U16 BR-SB7 spend attribution — strictly best-effort: if the plans module is unavailable
+# the null context keeps this worker byte-for-byte equivalent to the pre-U16 behavior.
+try:
+    from backend.modules.plans.rollup import spend_attribution as _spend_attribution
+except Exception:  # noqa: BLE001 — observation-only wiring must never break the worker
+    from contextlib import nullcontext as _spend_attribution  # type: ignore[assignment]
+
 log = logging.getLogger("docsuri.novelty.worker")
 
 
@@ -167,6 +174,31 @@ def _await_manuscript_doc_model(
 
 
 def process_job(
+    repo: NoveltyRepository,
+    owner_id: str,
+    job_id: str,
+    *,
+    adapters: NoveltyAdapters | None = None,
+    observability=None,
+    attempt: int = 0,
+    reenqueue: Callable[[str, str, int], None] | None = None,
+) -> None:
+    # U16 BR-SB7: 이 잡의 Bedrock 지출을 소유자에게 귀속(관측 전용 일일 롤업). ops의
+    # UsageEvent에는 사용자 문맥이 없어, owner_id가 스코프에 있는 여기서 contextvar로
+    # 흘려보낸다 — 롤업 실패는 record 측에서 삼켜져 잡에 영향이 없다.
+    with _spend_attribution(owner_id):
+        _process_job(
+            repo,
+            owner_id,
+            job_id,
+            adapters=adapters,
+            observability=observability,
+            attempt=attempt,
+            reenqueue=reenqueue,
+        )
+
+
+def _process_job(
     repo: NoveltyRepository,
     owner_id: str,
     job_id: str,
