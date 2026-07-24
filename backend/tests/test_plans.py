@@ -138,6 +138,31 @@ def test_grant_takes_effect_immediately_through_middleware(
         asyncio.run(agent_quota.enforce_evidence_turn_quota(_request(user)))
 
 
+def test_middleware_plan_resolution_runs_in_threadpool(limiter, plans_repo, monkeypatch) -> None:
+    """NFR-P6/P7: 동기 플랜 해석(Postgres 배선 시 블로킹 DB 왕복)은 이벤트 루프에서 직접
+    실행되지 않고 run_in_threadpool로 위임된다 — 요청마다 정확히 1회, 그리고 그 반환값이
+    실제 집행 한도를 결정한다(plus 2가 free 1을 대체: 2회 통과 후 3회째 429)."""
+    monkeypatch.setattr(agent_quota, "_EVIDENCE_DAILY_LIMIT", 1)
+    monkeypatch.setenv("DOCSURI_PLAN_PLUS_EVIDENCE_DAILY", "2")
+    recorded: list[tuple] = []
+    real_run_in_threadpool = agent_quota.run_in_threadpool
+
+    async def recording_run_in_threadpool(func, *args, **kwargs):
+        recorded.append((func, args))
+        return await real_run_in_threadpool(func, *args, **kwargs)
+
+    monkeypatch.setattr(agent_quota, "run_in_threadpool", recording_run_in_threadpool)
+    user, admin = str(uuid4()), str(uuid4())
+    PlansService(plans_repo).grant(admin, user)
+
+    asyncio.run(agent_quota.enforce_evidence_turn_quota(_request(user)))
+    asyncio.run(agent_quota.enforce_evidence_turn_quota(_request(user)))  # free 1이면 여기서 429
+    with pytest.raises(HTTPException):
+        asyncio.run(agent_quota.enforce_evidence_turn_quota(_request(user)))
+
+    assert recorded == [(agent_quota._plan_limit, ("evidence", user))] * 3
+
+
 def test_plan_limit_resolves_both_scopes_for_plus(plans_repo) -> None:
     user, admin = str(uuid4()), str(uuid4())
     PlansService(plans_repo).grant(admin, user)

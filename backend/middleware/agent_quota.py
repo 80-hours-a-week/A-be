@@ -19,6 +19,7 @@ import logging
 import os
 
 from fastapi import HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 
 from backend.middleware.rate_limit import get_shared_limiter
 
@@ -44,7 +45,12 @@ def _plan_limit(scope: str, user_id: str) -> int | None:
     """U16 §2 — 활성 plus 사용자의 plus 한도, 그 외 전부 None(→ 호출측 free 상수 유지).
 
     plans 모듈 부재·provider 미배선·저장소 예외 등 ANY 실패도 None: 미들웨어는 plans가
-    없던 시절과 정확히 같게 동작해야 한다(BR-SB5 fail-safe, 무회귀)."""
+    없던 시절과 정확히 같게 동작해야 한다(BR-SB5 fail-safe, 무회귀).
+
+    스레딩 계약: Postgres 배선 시 내부에서 동기 SQLAlchemy 왕복이 일어나므로 async 경로에서는
+    반드시 ``run_in_threadpool``로 감싸 호출한다(_enforce가 그렇게 호출). 이 함수는 total —
+    어떤 입력·장애에서도 예외를 전파하지 않고 None을 반환하므로, threadpool 경유 여부와
+    무관하게 실패 경로는 동일하다. (provider 내부의 RLock은 워커 스레드 호출에 안전.)"""
     try:
         from backend.modules.plans.provider import resolve_quotas_for
 
@@ -61,7 +67,11 @@ async def _enforce(request: Request, *, scope: str, limit: int) -> None:
     principal = getattr(request.state, "principal", None)
     if principal is None:
         return  # 인증 없음 → 라우트의 401이 담당, 쿼터는 관여하지 않는다
-    plan_limit = _plan_limit(scope, principal.user_id)
+    # NFR-P6/P7 — 플랜 해석은 Postgres 배선 시 블로킹 DB 왕복이므로 이벤트 루프에서 직접
+    # 실행하지 않고 threadpool로 위임한다(evidence/research 컨트롤러의 run_in_threadpool 관용구).
+    # _plan_limit은 total(모든 실패 → None)이라 in-memory 경로 포함 어느 경우에도 예외가
+    # 전파되지 않는다 — free 단락(None)·BR-SB1/BR-SB5 fail-safe 동작은 종전과 동일.
+    plan_limit = await run_in_threadpool(_plan_limit, scope, principal.user_id)
     if plan_limit is not None:
         limit = plan_limit  # 활성 plus — 집행 메커니즘은 동일, 값만 교체(BR-SB3)
     key = f"agent:{scope}:{principal.user_id}"
