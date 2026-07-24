@@ -1,6 +1,7 @@
 # DocSuri Production Roadmap — 2026-07
 
 > **Date**: 2026-07-03 · **Baseline**: **main at v1.14.0** (`93cece9f`) — Phase 2 hardening board **shipped to prod**; v1.14 promotion (2026-07-08) ships #345 shadow-metric machinery + #344 audit step + parser/render fixes.
+> **Updated**: 2026-07-24 — **🏁 ROADMAP CLOSED — COMPLETE**. Phase 3 items 1–4 **all shipped** through the full AI-DLC cycle on the fork: 온보딩 **U14** (PR #4 `6ca4402`) · 트렌드/알림 **U15** (PR #5 `39bcebf`) · 웹검색 레퍼런스 **U11 확장** (PR #6 `6835826`) · 구독제 **U16** (PR #7 `97b8ba0`, 07-24). Phases 0–3 전부 종결 — this roadmap has no remaining open scope. **Post-roadmap backlog** (owner-scheduled, recorded in aidlc-docs/reports): daily-harvest resume (paused — U15 digest efficacy depends on it) · SES production access on `559352512800` + local SES credentials · plus-quota recalibration from `UserDailySpend` actuals (spend report §3) · #344 native_html GROBID re-parse (deferred corpus quality). Living ops continue on the local-serving fork (`develop`).
 > **Updated**: 2026-07-23 — **🏁 Phases 0–2 CLOSED — COMPLETE; Phase 3 OPEN** (final reconcile vs GitHub + fork state). Phase 0 ✅ · Phase 1 ✅ (v1.9.0) · Phase 2 ✅ — every tracked issue terminal (#343/#344/#345/#347/#348/#167 closed; #419/#423/#424/#425/#427 merged 2026-07-07). **Phase 3 (§5) is the remaining open scope** — inception re-entry started 2026-07-23 with 온보딩 — **requirements RESOLVED same day**: OQ 7건 전건 오너 결정 → **FR-44~46·C-7~8 등재 + FR-39 개정**(`onboarding.md` → `requirements.md`), 신규 유닛 **U14**, US-P5 선행 포함. Next: U14 stories → design. Endgame after the last board update below:
 > - ✅ **#345 LIVE** — shadow review (synthetic + algorithm) approved the flip; **PR #446** put the US-P4 boost on the live search order via `SEARCH_RERANK_LIVE` (**v1.15.0**, 2026-07-08). CDK `compute_stack.py` pins the flag default `"true"` (drift-proof) with `-c search_rerank_live=false` as no-code rollback; live api task-def rev31. Follow-up **PR #454** healed a silent no-op (profile TTL refresh + category backfill, v1.17.0). US-P5 + keywordWeights carried forward.
 > - ✅ **Final sprint v1.15→v1.19** (07-08→07-10): privacy/terms 페이지+탈퇴 보관정책 정합(#447, v1.16.0) · u7 요약 출처 앵커 수정(#456/#457, v1.17.1) · u7 전문 번역 표준 용어 마스킹 결정적 강제(#462, v1.18.0) · u7 CI job(#459) · **full user-story QA pass — 70 stories**(#464) + search cold-path 504·US-D6 기권 플로어 수정(#465, v1.18.1) + QA 갭 백로그 8 워크스트림 해소(#467, v1.18.2) · EV2 sync-turn SSE 스트리밍(NFR-P6 #266, #469). **Terminal prod release: `v1.19.0` (2026-07-10)** — org repo (80-hours-a-week) frozen thereafter.
@@ -65,7 +66,7 @@
 | 프로필 페이지 | ✅ Live | U10 merged; 최근 본 논문 실데이터 PR #407 + ORCID 로그인 PR #414 — **#347 closed 2026-07-08**, ORCID fully wired live (app registered, secret in SM, task-def rev30, FE flag=1) |
 | 인용 그래프 → 각주 트리 | ✅ Live | DOI node expansion 500 fixed — **PR #357** (provider fail-closed) shipped **v1.5.0**, #342 closed |
 | 트렌드/알림 | ✅ Shipped (fork PR #5, 2026-07-23) | U15 follow-topic list + opt-in email digest (watermark job, one-click unsubscribe) merged to `develop` (`39bcebf`); digest efficacy gated on harvest resume (paused) + SES production access — ops follow-ups |
-| 구독제 | 🟡 Inception — requirements RESOLVED (2026-07-24) | **FR-50~51 + C-12 registered** (`subscription.md`, all 8 OQs owner-decided): plan/tier only (v1 payments carved out — ADMIN manual grants), paid boundary = agent quota raises, free/plus, monthly periods, paid-through-period. New unit **U16**. Gate: plus numbers TBD until CostGuard spend report. Next: report + stories → design |
+| 구독제 | ✅ Shipped (fork PR #7, 2026-07-24) | U16 plan/tier system (free/plus) over the existing CostGuard/quota substrate — plan-aware agent quotas (plus 90/15 via env, 3× per spend report), ADMIN+MFA manual grants (v1 payments carved out, C-12), paid-through-period derived-state expiry, UserDailySpend calibration rollup, mypage plan card — merged to `develop` (`97b8ba0`) with unit review APPROVE + event-loop fix |
 | 로그 수집 | ✅ Live | U9 collection healthy (944 events/7d, 0 failures); KPI funnel dashboard + read-complete instrumentation PR #403 merged to develop, #346 closed (main promotion pending) |
 | 개인화 추천 | ✅ Live (v1.15.0) | Shadow (PR #300) → machinery (PR #441/#442) → **flipped LIVE via PR #446** (`SEARCH_RERANK_LIVE`, 2026-07-08) after shadow review; silent no-op healed by PR #454 (profile TTL refresh + category backfill, v1.17.0). #345 closed. US-P5 + keywordWeights deferred |
 | 에이전트: 문헌탐색/근거형성 | ✅ Live (v1.4.0) | PR #338 shipped v1.4.0; **cost-governed since v1.5.0** (PR #364); 근거 카드 + `§` 인용 앵커 (#339, PR #365); 첨부 검증 422 + 500 수정 (PR #373); **첨부 본문 근거 추출 포함** (PR #376) + **세션 재열람·삭제·전체 초기화** (PR #375) — **모두 v1.6.0 배포**; **QT-8 근거화 평가셋 상시화** (#273, PR #383, **v1.7.0**). **PDF 첨부(doc-model 경유) ✅ v1.8.0 MVP + v1.9.0 GROBID(#13)** — Phase 1 완료 |
@@ -160,7 +161,12 @@ Ordered by user impact:
 > payment introduction) · paid boundary = agent quota raises only · two tiers (free/plus) ·
 > monthly periods · paid-through-period downgrade. **Execution gate: plus quota numbers stay TBD
 > until a CostGuard per-user spend report** (local-era window) is reviewed.
-> Next: spend report (precursor) + U16 stories → design.
+> **Item 4 ✅ SHIPPED 2026-07-24**: spend report (`reports/costguard-spend-report-2026-07.md` —
+> ceiling-formula basis, plus=3× default) → stories(US-SB1~3) → design (derived-state expiry, no
+> scheduler) → implementation (plans module, plan-aware agent quotas, UserDailySpend rollup,
+> mypage plan card) → unit review APPROVE + event-loop fix — merged to `develop` via fork
+> PR #7 (`97b8ba0`). **Phase 3 CLOSED — all four items shipped; this roadmap's open scope is
+> exhausted.** Remaining threads are post-roadmap ops (see the 2026-07-24 header note).
 > The ordering rationale in §6 still holds.
 
 Recommended order; none of these have requirements coverage today:
