@@ -48,6 +48,8 @@ __all__ = [
     "EvidenceRequest",
     "EvidenceResult",
     "EvidenceFormationPort",
+    "UserDocModelRefLike",
+    "UserDocModelCoordinatorPort",
 ]
 
 # --- Grounding (ports.md §2) -------------------------------------------------
@@ -262,4 +264,42 @@ class EvidenceFormationPort(Protocol):
         긴 다논문 분석은 비동기 잡(U7 패턴)으로 오프로드 가능 — 표면은 U4 FD 이월.
         Trace: Q1, Q3, Q4, Q9, FR-5, SEC-9, C-2, D5.
         """
+        ...
+
+
+# --- User PDF → DocModel (PR0 frozen contract; 2026-08-03 unit recomposition) --------
+# PROVISIONAL opaque shape — the concrete ref dataclass lives with the U1-owned
+# coordinator (``backend.modules.user_docmodel``); only the method seam is shared.
+# paperId=userdoc:{uuid} · recordRef=upload:{ownerId}:{jobId}:{attachmentId}
+UserDocModelRefLike = Any
+
+
+@runtime_checkable
+class UserDocModelCoordinatorPort(Protocol):
+    """사용자 업로드 PDF → DocModel 조정 포트. **U1이 구현, U11/U12가 주입으로 소비.**
+
+    Fail-soft contract: build/readiness failures degrade to ``None`` (never 500) —
+    consumers fall back to their own degraded notices (EVIDENCE_PDF_DEGRADED_NOTICE /
+    NOVELTY_PDF_DEGRADED_REASON)."""
+
+    def upload_pdf(
+        self, ref: UserDocModelRefLike, pdf: bytes, *, file_name: str, content_type: str = ...
+    ) -> None:
+        """🟡 PROVISIONAL — S3 put with frozen metadata (paper-id/record-ref/owner-id)."""
+        ...
+
+    def enqueue_build(self, ref: UserDocModelRefLike) -> None:
+        """🟡 PROVISIONAL — BUILD_USER_DOC_MODEL enqueue; no-op without a queue."""
+        ...
+
+    def poll_doc_model(self, ref: UserDocModelRefLike) -> Any | None:
+        """🟡 PROVISIONAL — bounded readiness poll; ``None`` = not ready/degraded."""
+        ...
+
+    def peek_doc_model(self, ref: UserDocModelRefLike) -> Any | None:
+        """🟡 PROVISIONAL — single non-blocking readiness check."""
+        ...
+
+    def enqueue_and_poll(self, ref: UserDocModelRefLike) -> Any | None:
+        """🟡 PROVISIONAL — convenience: enqueue then bounded poll."""
         ...

@@ -1,7 +1,8 @@
 # unit-of-work-story-map.md — 스토리 → 유닛 매핑
 
 **단계**: INCEPTION → Units Generation · **일자**: 2026-06-15
-**근거**: `stories.md`(핵심 45 + US-NV1~9[U12] + US-EV1~9[U11]), `unit-of-work.md`(U1~U12). 각 스토리에 **주 소유 유닛(Owner)** + 기여 유닛. (구 통합 U11 연구 에이전트 스토리는 2유닛 분리로 제거 후 **에픽 9 US-NV(U12 novelty)·에픽 10 US-EV(U11 evidence)로 재생성 완료** — 2026-06-29; 아래 U11/U12 묶음 참조. 정정 2026-06-30, `aidlc-suite-review` PR #280.)
+**근거**: `stories.md`(핵심 45 + US-NV1~9[U12] + US-EV1~9[U11] + US-AG1~6[U13] 등), `unit-of-work.md`(U1~U16 — 2026-08-03 재구성으로 U10·U13 등재).
+**2026-08-03 유닛 재구성 노트**: US-AG1~6 Owner=**U13**(Agent Chat FE). 구 `research` 모듈의 U11 흡수는 스토리 소유 **무변**(US-EV Owner=U11 유지 — 세션 셸은 U11 내부 이동). U10 관련 UI 기여 표기(US-A5/A6 등)는 유효. 각 스토리에 **주 소유 유닛(Owner)** + 기여 유닛. (구 통합 U11 연구 에이전트 스토리는 2유닛 분리로 제거 후 **에픽 9 US-NV(U12 novelty)·에픽 10 US-EV(U11 evidence)로 재생성 완료** — 2026-06-29; 아래 U11/U12 묶음 참조. 정정 2026-06-30, `aidlc-suite-review` PR #280.)
 
 ---
 

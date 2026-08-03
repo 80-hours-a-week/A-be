@@ -900,3 +900,20 @@ _Resiliency 옵트인은 `requirements.md` 확정 전에 필수 요구사항 명
   - `npx --yes aws-cdk@2 --app "/Users/revenantonthemission/Projects/DocSuri/ops/cdk/.venv/bin/python app.py" synth Docsuri-Compute` -> passed with existing Node/CDK annotation warnings
   - `git diff --check` -> passed
 - Current gate: ready for review/deploy decision.
+
+## 유닛 재구성 (Unit Recomposition) — 적용 완료
+
+- Date: 2026-08-03
+- Stage: INCEPTION / Units Generation 재진입 (레지스트리↔코드 정합 회복)
+- Trigger: 사용자 지시 — "유닛 재구성; 일부 유닛이 부분적이거나 임시 방편(quick fix)". 감사 결과 레지스트리 3종이 실제 마운트 모듈(11개)과 드리프트.
+- Plan/gate: `inception/plans/unit-recomposition-plan.md` — UQ1~5 **전부 A**(사용자 답변), 적용 범위 = 레지스트리 + 코드 브랜치.
+- Branch: `refactor/unit-recomposition` (base origin/develop `0df2ced`)
+- 적용 내용:
+  - **research→U11 흡수 (UQ1=A)**: `backend/modules/research/` → `backend/modules/evidence/sessions/`(git mv, 이력 보존). 라우트 `/api/research`·readyz 라벨 `research`·DTO 불변(FE 무영향). 게이트 통합: 세션은 `EVIDENCE_AGENT_ENABLED` off 시 함께 비활성(+기존 `RESEARCH_AGENT_ENABLED`는 세션 전용 레버 유지 — prod CDK 양쪽 true라 무변).
+  - **user_docmodel U1 소유 확정 (UQ2=A)**: `backend/modules/user_docmodel.py` → `backend/modules/user_docmodel/coordinator.py` + `__init__.py` 재수출(임포트 경로 불변). 포트 `UserDocModelCoordinatorPort`(+`UserDocModelRefLike`)를 `docsuri_shared.ports`에 승격(U1 구현·U11/U12 주입 소비, PROVISIONAL).
+  - **레지스트리 정정 (UQ4=A)**: `unit-of-work.md` U10 MyPage·U13 Agent Chat FE(US-AG1~6) 정식 등재(자리 주석 해소), U11 코드 위치 `evidence_agent/`→`evidence/` 오기 정정, U12 코드 위치 문서 경로→`backend/modules/novelty/` 정정, 배포 단위 ①(U10·U14~U16 반영)·④(U13 슬라이스), 코드 트리 U10~U16+user_docmodel 반영. `unit-of-work-dependency.md` U10~U16 의존 요약 신설(비순환 유지). `unit-of-work-story-map.md` U13 Owner 노트.
+  - **U8 (UQ3=A)**: citation_graph 단일 파일 구조는 현상 유지(구조 부채로만 기록).
+  - **문서 위생 (UQ5=A)**: `u6-integration-proposal.md` 적용-완료 스탬프.
+- Verification: shared `uv run pytest` 전체 green + ruff clean; backend focused(연구/근거/유저독모델/novelty/app-shell) exit 0; `backend/tests` 전체 스윕 exit 0; touched ruff clean; compileall PASS.
+- 기록 갭(후속): 2026-07-02 이후 증분(U14 온보딩·U15 트렌드·U16 플랜 인셉션/빌드, v3 재임베드 컷오버, novelty 쿼리확장 개편, U9 US-P4 go-live v1.15.0)은 본 파일에 상태 항목 미기재 — 각 담당의 사후 기재 권장(레지스트리·audit.md에는 존재).
+- Current gate: 커밋 완료·push/PR 보류(사용자 승인 후).

@@ -571,7 +571,7 @@ def test_run_evidence_degrades_on_overlong_topic() -> None:
     orchestrator까지 도달하면 안 된다."""
     import asyncio
 
-    from backend.modules.research.service import _format_turn_result, _run_evidence
+    from backend.modules.evidence.sessions.service import _format_turn_result, _run_evidence
 
     class _Orch:
         def run(self, ctx, request):
@@ -664,7 +664,7 @@ def test_run_evidence_forwards_prior_topics() -> None:
     """research _run_evidence가 prior_topics를 orchestrator ctx로 전달한다."""
     import asyncio
 
-    from backend.modules.research.service import _run_evidence
+    from backend.modules.evidence.sessions.service import _run_evidence
 
     captured: dict[str, tuple[str, ...]] = {}
 

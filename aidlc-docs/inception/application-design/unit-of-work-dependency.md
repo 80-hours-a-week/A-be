@@ -24,7 +24,17 @@
 > **U7은 U2와 동일 의존 패턴**: U1 DocModel/FullText는 capability read(코드 의존 아님), U6 근거화·비용 후크는 `shared/ports` 인터페이스 의존(U6 구현) → U7↔U6 코드 순환 없음.
 > **U8은 로그인 필수 상세보기 보조 경로**: U3/U6 인증·게이트웨이 경로를 통과하고, 노드 저장은 U4 Library 계약을 호출한다. 외부 citation API는 U8 내부 어댑터 뒤에 둔다.
 > **U9는 비차단 개인화 보조 경로**: U2/U4/U7/U5 성공 경로가 의미 이벤트를 기록하거나 프로필을 읽지만, 실패해도 본 기능은 기본 비개인화 경로로 계속된다.
-> **연구 에이전트(2026-06-28)**: 구 통합 U11은 폐기·2유닛 분리(차터 §4) — 의존 행/열은 신규 인셉션 사이클 units-generation에서 재생성한다.
+> **연구 에이전트(2026-06-28)**: 구 통합 U11은 폐기·2유닛 분리(차터 §4).
+>
+> **U10~U16 의존 요약 (2026-08-03 유닛 재구성 — 매트릭스는 U1~U9 원본 보존, 이후 유닛은 본 요약이 SSOT)**:
+> - **U10 MyPage** → U3 sync(세션/인가·계정 메뉴 위임), U16 sync(플랜 표시 값 — mock 구독 대체 예정). 관심 논문·로그아웃은 FE가 U4/U3 직접 호출(U10 코드 의존 없음).
+> - **U11 Evidence** → U2 sync(검색)·U1 capability(DocModel S3 read + `user_docmodel` 포트)·U6 lib(`shared/ports` 근거화·비용)·U7 배관 재사용. 세션 셸(`evidence/sessions/`, 구 research)은 U11 내부 — 외부 의존 동일.
+> - **U12 Novelty** → U11 lib(`EvidenceFormationPort`)·U2 `full`·U1 `user_docmodel` 포트·외부 탐색(GitHub/데이터셋).
+> - **U13 Agent Chat FE** → U11 sync(REST/SSE `/api/research`)·U12 sync(novelty 잡 API). 코드 의존은 DTO lib뿐(타 유닛 비차단).
+> - **U14 Onboarding** → U9 event(관심사 시딩 — 직접 프로필 기록 금지 C-7)·U3 sync(가입/로그인 경로).
+> - **U15 Trends** → U1 capability(코퍼스 임베딩 read)·U6 lib(email 경로·관측).
+> - **U16 Plans** → U6 lib(CostGuard에 쿼터 값 공급 — 계약 불변, NFR-C1).
+> - **U1 `user_docmodel` 포트(2026-08-03)**: U11/U12는 `docsuri_shared.ports.UserDocModelCoordinatorPort`로 주입 소비(의존성 역전, U11↔U6 패턴) — **코드 DAG 비순환 유지**.
 
 ## 통신 패턴
 - **동기 REST**(NFR-P1 읽기 경로): U5 → U6 게이트웨이 → U2/U3/U4/U9 핸들러 → 응답. U4 rerun도 동일 경로 재진입(백도어 금지).

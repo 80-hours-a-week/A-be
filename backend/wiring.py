@@ -853,8 +853,8 @@ def _mount_novelty(app: FastAPI, settings: Settings, result: MountResult) -> Non
 
 
 def _mount_research(app: FastAPI, settings: Settings, result: MountResult) -> None:
-    from backend.modules.research import controller as research
-    from backend.modules.research.repository import (
+    from backend.modules.evidence.sessions import controller as research
+    from backend.modules.evidence.sessions.repository import (
         InMemoryResearchRepository,
         SqlResearchRepository,
     )

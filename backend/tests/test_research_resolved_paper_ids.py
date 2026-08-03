@@ -5,9 +5,9 @@ import asyncio
 from docsuri_shared._generated.dtos.evidence_schema import EvidenceCoverage, EvidenceResult
 
 from backend.modules.evidence.models import TurnSuccessResult
-from backend.modules.research.models import ResearchChatRequest
-from backend.modules.research.repository import InMemoryResearchRepository
-from backend.modules.research.service import ResearchService
+from backend.modules.evidence.sessions.models import ResearchChatRequest
+from backend.modules.evidence.sessions.repository import InMemoryResearchRepository
+from backend.modules.evidence.sessions.service import ResearchService
 
 
 class _StubOrchestrator:

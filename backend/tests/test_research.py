@@ -9,8 +9,8 @@ from sqlalchemy.dialects import postgresql
 from backend.app import create_app
 from backend.config import Settings
 from backend.modules.novelty.repository import NoveltyJobTable
-from backend.modules.research import controller
-from backend.modules.research.repository import InMemoryResearchRepository, ResearchJobTable
+from backend.modules.evidence.sessions import controller
+from backend.modules.evidence.sessions.repository import InMemoryResearchRepository, ResearchJobTable
 from backend.modules.user_docmodel import EVIDENCE_PDF_DEGRADED_NOTICE
 
 
@@ -147,7 +147,7 @@ def test_research_message_rejects_bad_attachment_with_422(monkeypatch) -> None:
 def test_research_job_transitions_to_completed_after_message(monkeypatch) -> None:
     """PR #338 리뷰 Blocking #3 — job.state가 active로 남으면 FE가 이를 running으로
     매핑해 답변이 저장돼도 폴링을 멈추지 않는다."""
-    from backend.modules.research.models import ResearchJobState
+    from backend.modules.evidence.sessions.models import ResearchJobState
 
     principal = _principal()
     repo = InMemoryResearchRepository()

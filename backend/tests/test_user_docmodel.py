@@ -8,11 +8,11 @@ import pytest
 
 from backend.modules.user_docmodel import (
     UserDocModelCoordinator,
-    _userdoc_build_queue_url,
     object_key_for_upload,
     ref_from_attachment,
     user_docmodel_ref,
 )
+from backend.modules.user_docmodel.coordinator import _userdoc_build_queue_url
 
 
 def _ref():

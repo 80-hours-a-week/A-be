@@ -23,8 +23,8 @@ from backend.modules.evidence import controller
 from backend.modules.evidence.models import TurnSuccessResult
 from backend.modules.evidence.repository import InMemoryEvidenceRepository
 from backend.modules.evidence.streaming import progress_event, turn_sse_stream
-from backend.modules.research import controller as research_controller
-from backend.modules.research.repository import InMemoryResearchRepository
+from backend.modules.evidence.sessions import controller as research_controller
+from backend.modules.evidence.sessions.repository import InMemoryResearchRepository
 
 CLAIM_STATEMENT = '벤치마크 재사용은 데이터 누수 위험을 높인다.'
 CLAIM_QUOTE = 'benchmark reuse inflates scores through leakage'

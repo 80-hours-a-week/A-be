@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.middleware.agent_quota import enforce_evidence_turn_quota
+
 # U11 SSE 스트리밍 코어 재사용(US-EV2/NFR-P6) — research는 FE agent chat의 evidence 표면.
 from backend.modules.evidence.streaming import (
     progress_event,
@@ -37,7 +38,12 @@ from .service import ResearchService
 
 
 def _feature_enabled() -> None:
-    if os.getenv("RESEARCH_AGENT_ENABLED", "true").lower() not in {"1", "true", "yes", "on"}:
+    # Sessions are part of U11: a disabled evidence agent disables its chat sessions too.
+    # RESEARCH_AGENT_ENABLED stays as the narrower, sessions-only lever (both default on).
+    _on = {"1", "true", "yes", "on"}
+    if os.getenv("EVIDENCE_AGENT_ENABLED", "true").lower() not in _on:
+        raise HTTPException(status_code=404, detail="not found")
+    if os.getenv("RESEARCH_AGENT_ENABLED", "true").lower() not in _on:
         raise HTTPException(status_code=404, detail="not found")
 
 

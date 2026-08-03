@@ -22,9 +22,9 @@ from backend.modules.evidence.models import (
 )
 from backend.modules.evidence.repository import Base as EvidenceBase
 from backend.modules.evidence.repository import SqlEvidenceRepository
-from backend.modules.research.models import ResearchJob
-from backend.modules.research.repository import Base as ResearchBase
-from backend.modules.research.repository import SqlResearchRepository
+from backend.modules.evidence.sessions.models import ResearchJob
+from backend.modules.evidence.sessions.repository import Base as ResearchBase
+from backend.modules.evidence.sessions.repository import SqlResearchRepository
 
 
 @pytest.fixture
